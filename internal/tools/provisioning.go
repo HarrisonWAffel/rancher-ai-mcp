@@ -1,3 +1,5 @@
+//go:generate go run ../../cmd/genparams/main.go
+
 package tools
 
 import (
@@ -9,7 +11,13 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
+
+// GetNodesParams specifies the parameters needed to retrieve node metrics.
+type GetNodesParams struct {
+	Cluster string `json:"cluster" jsonschema:"the cluster of the resource"`
+}
 
 // GetNodes retrieves information and metrics for all nodes in a given cluster.
 func (t *Tools) GetNodes(ctx context.Context, toolReq *mcp.CallToolRequest, params GetNodesParams) (*mcp.CallToolResult, any, error) {
@@ -43,6 +51,40 @@ func (t *Tools) GetNodes(ctx context.Context, toolReq *mcp.CallToolRequest, para
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{&mcp.TextContent{Text: mcpResponse}},
 	}, nil, nil
+}
+
+//go:generate:params
+type GetProvisioningClusterParams struct {
+	Name string `json:"name" jsonschema:"the name of the provisioning cluster"`
+}
+
+// GetProvisioningCluster returns a v1 provisioning cluster by name.
+func (t *Tools) GetProvisioningCluster(ctx context.Context, toolReq *mcp.CallToolRequest, params GetProvisioningClusterParams) (*mcp.CallToolResult, any, error) {
+	clusterResource, err := t.getResource(ctx, GetParams{
+		Cluster:   "local",
+		Kind:      "clusters.provisioning.cattle.io",
+		Namespace: "fleet-local",
+		Name:      params.Name,
+		URL:       toolReq.Extra.Header.Get(urlHeader),
+		Token:     toolReq.Extra.Header.Get(tokenHeader),
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	mcpResponse, err := response.CreateMcpResponse([]*unstructured.Unstructured{clusterResource}, params.Name)
+	if err != nil {
+		zap.L().Error("failed to create mcp response", zap.String("tool", "getNodes"), zap.Error(err))
+		return nil, nil, err
+	}
+
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{&mcp.TextContent{Text: mcpResponse}},
+	}, nil, nil
+}
+
+type GetClusterImagesParams struct {
+	Clusters []string `json:"clusters" jsonschema:"the clusters where images are returned"`
 }
 
 func (t *Tools) GetClusterImages(ctx context.Context, toolReq *mcp.CallToolRequest, params GetClusterImagesParams) (*mcp.CallToolResult, any, error) {

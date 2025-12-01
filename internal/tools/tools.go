@@ -54,11 +54,6 @@ type ResourceParams struct {
 	Cluster   string `json:"cluster" jsonschema:"the cluster of the resource"`
 }
 
-// GetNodesParams specifies the parameters needed to retrieve node metrics.
-type GetNodesParams struct {
-	Cluster string `json:"cluster" jsonschema:"the cluster of the resource"`
-}
-
 type JSONPatch struct {
 	Op    string `json:"op"`
 	Path  string `json:"path"`
@@ -96,10 +91,6 @@ type SpecificResourceParams struct {
 	Name      string `json:"name" jsonschema:"the name of k8s resource"`
 	Namespace string `json:"namespace" jsonschema:"the namespace of the resource"`
 	Cluster   string `json:"cluster" jsonschema:"the cluster of the resource"`
-}
-
-type GetClusterImagesParams struct {
-	Clusters []string `json:"clusters" jsonschema:"the clusters where images are returned"`
 }
 
 // ContainerLogs holds logs for multiple containers.
