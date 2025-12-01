@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 
+	"mcp/internal/tools"
+
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/rancher/dynamiclistener"
 	"github.com/rancher/dynamiclistener/server"
@@ -15,7 +17,6 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/client-go/rest"
-	"mcp/internal/tools"
 )
 
 const (
@@ -112,6 +113,12 @@ func main() {
 		Parameters:
 		clusters (array of strings): List of clusters to get images from. Empty for return images for all clusters.`},
 		tools.GetClusterImages)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "getProvisioningClusters",
+		Description: `Returns a list of all provisioning clusters.
+		Parameters:
+		clusterName (string): the name of the provisioning cluster to retrieve.`,
+	}, tools.GetProvisioningCluster)
 
 	handler := mcp.NewStreamableHTTPHandler(func(request *http.Request) *mcp.Server {
 		return mcpServer
