@@ -114,11 +114,23 @@ func main() {
 		clusters (array of strings): List of clusters to get images from. Empty for return images for all clusters.`},
 		tools.GetClusterImages)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "getProvisioningClusters",
-		Description: `Returns a list of all provisioning clusters.
+		Name: "inspectCluster",
+		Description: `Returns a set of kubernetes resources that can be used to inspect the cluster for debugging and summary purposes.
+		This set of resources includes the provisioning cluster, its machine pools, the cluster API machines from those pools, a config map which includes provisioning log messages,
+		and event cluster events from multiple namespaces. Utilize this tool to handle requests which ask about general debugging, status reports, provisioning errors, or provisioning summaries.
 		Parameters:
-		clusterName (string): the name of the provisioning cluster to retrieve.`,
-	}, tools.GetProvisioningCluster)
+		clusterName (string): the name of the provisioning cluster to inspect.
+		namespace (string, optional): the namespace within the local cluster that the provisioning cluster resource exists in. Use fleet-default if nothing is provided.'
+		Returns a collection of kubernetes resources representing various aspects of the cluster.`,
+	}, tools.InspectCluster)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "inspectClusterMachines",
+		Description: `Returns a set of kubernetes resources that can be used to inspect the cluster and the associated cluster API resources for debugging and summary purposes.	
+		Parameters:
+		clusterName (string): the name of the provisioning cluster to retrieve.
+		namespace (string, optional): the namespace within the local cluster that the provisioning cluster resource exists in. Use fleet-default if nothing is provided.'
+		Returns a collection of kubernetes resources representing various aspects of the cluster and its cluster API machine resources.`,
+	}, tools.InspectClusterMachines)
 
 	handler := mcp.NewStreamableHTTPHandler(func(request *http.Request) *mcp.Server {
 		return mcpServer

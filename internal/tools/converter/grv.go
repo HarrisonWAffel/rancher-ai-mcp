@@ -2,6 +2,9 @@ package converter
 
 import "k8s.io/apimachinery/pkg/runtime/schema"
 
+// TODO: This approach does not scale, and won't work well as we bump capi versions
+// 		 going forward. We need an alternative.
+
 var K8sKindsToGVRs = map[string]schema.GroupVersionResource{
 	// --- CORE Kubernetes Resources (Group: "") ---
 	"pod":                   {Group: "", Version: "v1", Resource: "pods"},
@@ -60,7 +63,7 @@ var K8sKindsToGVRs = map[string]schema.GroupVersionResource{
 	"pod.metrics.k8s.io":  {Group: "metrics.k8s.io", Version: "v1beta1", Resource: "pods"},
 
 	// --- RANCHER CORE Resources (Group: "management.cattle.io") ---
-	"cluster":                    {Group: "management.cattle.io", Version: "v3", Resource: "clusters"},
+	"managementcluster":          {Group: "management.cattle.io", Version: "v3", Resource: "clusters"},
 	"project":                    {Group: "management.cattle.io", Version: "v3", Resource: "projects"},
 	"user":                       {Group: "management.cattle.io", Version: "v3", Resource: "users"},
 	"roletemplate":               {Group: "management.cattle.io", Version: "v3", Resource: "roletemplates"},
@@ -71,6 +74,9 @@ var K8sKindsToGVRs = map[string]schema.GroupVersionResource{
 	"nodetemplate":               {Group: "management.cattle.io", Version: "v3", Resource: "nodetemplates"},
 	"nodedriver":                 {Group: "management.cattle.io", Version: "v3", Resource: "nodedrivers"},
 
+	// --- RANCHER CORE Resources (Group: "provisioning.cattle.io") ---
+	"provisioningcluster": {Group: "provisioning.cattle.io", Version: "v1", Resource: "clusters"},
+
 	// --- RANCHER FLEET Resources (Group: "fleet.cattle.io") ---
 	"bundle":           {Group: "fleet.cattle.io", Version: "v1alpha1", Resource: "bundles"},
 	"gitrepo":          {Group: "fleet.cattle.io", Version: "v1alpha1", Resource: "gitrepos"},
@@ -80,4 +86,10 @@ var K8sKindsToGVRs = map[string]schema.GroupVersionResource{
 
 	// --- RANCHER CATTLE Resources (Group: "cattle.io") ---
 	"setting": {Group: "management.cattle.io", Version: "v3", Resource: "settings"},
+
+	// --- CLUSTER API Resources (Group: "cluster.x-k8s.io") ---
+	"capicluster":       {Group: "cluster.x-k8s.io", Version: "v1beta1", Resource: "clusters"},
+	"machine":           {Group: "cluster.x-k8s.io", Version: "v1beta1", Resource: "machines"},
+	"machineset":        {Group: "cluster.x-k8s.io", Version: "v1beta1", Resource: "machinesets"},
+	"machinedeployment": {Group: "cluster.x-k8s.io", Version: "v1beta1", Resource: "machinedeployments"},
 }
