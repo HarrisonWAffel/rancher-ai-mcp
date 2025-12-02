@@ -162,6 +162,25 @@ func (t *Tools) getResource(ctx context.Context, params GetParams) (*unstructure
 	return obj, err
 }
 
+func (t *Tools) getResourceByGVR(ctx context.Context, params GetParams, gvr schema.GroupVersionResource, options ...metav1.GetOptions) (*unstructured.Unstructured, error) {
+	resourceInterface, err := t.client.GetResourceInterface(params.Token, params.URL, params.Namespace, params.Cluster, gvr)
+	if err != nil {
+		return nil, err
+	}
+
+	opts := metav1.GetOptions{}
+	if len(options) > 0 {
+		opts = options[0]
+	}
+
+	obj, err := resourceInterface.Get(ctx, params.Name, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return obj, err
+}
+
 func (t *Tools) getResources(ctx context.Context, params ListParams) ([]*unstructured.Unstructured, error) {
 	resourceInterface, err := t.client.GetResourceInterface(params.Token, params.URL, params.Namespace, params.Cluster, converter.K8sKindsToGVRs[strings.ToLower(params.Kind)])
 	if err != nil {
