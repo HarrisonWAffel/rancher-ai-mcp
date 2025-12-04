@@ -76,6 +76,10 @@ func main() {
 		cluster (string): The name of the Kubernetes cluster.`},
 		tools.ListKubernetesResources)
 	mcp.AddTool(mcpServer, &mcp.Tool{
+		Meta: mcp.Meta{
+			"requiresConfirmation": "true",
+			"confirmationMessage":  "I will <b>{create}</b> the <code>{name}</code> resource in the <code>{namespace}</code> namespace of the <code>{cluster}</code> cluster using the value <code>{resource}</code>. Are you sure you want to proceed?",
+		},
 		Name: "createKubernetesResource",
 		Description: `Creates a resource in a kubernetes cluster.'
 		Parameters:
