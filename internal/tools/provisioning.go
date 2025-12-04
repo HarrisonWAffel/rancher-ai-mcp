@@ -37,7 +37,6 @@ func (t *Tools) GetClusterMachine(ctx context.Context, toolReq *mcp.CallToolRequ
 		targetCluster: params.Cluster,
 		machineName:   params.MachineName,
 	})
-
 	if err != nil {
 		zap.L().Error("failed to lookup capi machine",
 			zap.String("tool", "GetClusterMachine"),
@@ -46,15 +45,7 @@ func (t *Tools) GetClusterMachine(ctx context.Context, toolReq *mcp.CallToolRequ
 		return nil, nil, err
 	}
 
-	var resources []*unstructured.Unstructured
-	for _, machine := range machines {
-		if machine.GetName() == params.MachineName {
-			resources = append(resources, machine)
-			break
-		}
-	}
-
-	mcpResponse, err := response.CreateMcpResponse(resources, params.Cluster)
+	mcpResponse, err := response.CreateMcpResponse(machines, params.Cluster)
 	if err != nil {
 		zap.L().Error("failed to create mcp response", zap.String("tool", "inspectProvisioningCluster"), zap.Error(err))
 		return nil, nil, err

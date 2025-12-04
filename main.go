@@ -117,6 +117,7 @@ func main() {
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Meta: mcp.Meta{
 			"requiresConfirmation": "true",
+			"confirmationMessage":  "This action may return many resources and as a result use a significant amount of tokens",
 		},
 		Name: "inspectCluster",
 		Description: `Returns a set of kubernetes resources that can be used to inspect the cluster for debugging and summary purposes.
@@ -139,7 +140,7 @@ func main() {
 		Name: "getClusterMachine",
 		Meta: mcp.Meta{
 			"requiresConfirmation": "true",
-			"confirmationMessage":  "This tool will return potentially sensitive information about a cluster API machine, its machine set, and machine deployment. Do you want to proceed?",
+			"confirmationMessage":  "This action will return potentially sensitive information about a cluster API machine, its machine set, and machine deployment.",
 		},
 		Description: `Returns one cluster API machine resource and the associated machine set and machine deployment, which when combined represent a single kubernetes node.'
 		Parameters:
