@@ -13,6 +13,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	provisioningV1 "github.com/rancher/rancher/pkg/apis/provisioning.cattle.io/v1"
 	"go.uber.org/zap"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -53,7 +54,7 @@ func (t *Tools) GetClusterMachine(ctx context.Context, toolReq *mcp.CallToolRequ
 		}
 	}
 
-	mcpResponse, err := response.CreateMcpResponse(resources, "local")
+	mcpResponse, err := response.CreateMcpResponse(resources, params.ClusterName)
 	if err != nil {
 		zap.L().Error("failed to create mcp response", zap.String("tool", "inspectProvisioningCluster"), zap.Error(err))
 		return nil, nil, err
@@ -92,7 +93,7 @@ func (t *Tools) InspectClusterMachines(ctx context.Context, toolReq *mcp.CallToo
 	resources = append(resources, machineSets...)
 	resources = append(resources, machineDeployments...)
 
-	mcpResponse, err := response.CreateMcpResponse(resources, "local")
+	mcpResponse, err := response.CreateMcpResponse(resources, params.ClusterName)
 	if err != nil {
 		zap.L().Error("failed to create mcp response", zap.String("tool", "inspectProvisioningCluster"), zap.Error(err))
 		return nil, nil, err
@@ -130,7 +131,7 @@ func (t *Tools) InspectCluster(ctx context.Context, toolReq *mcp.CallToolRequest
 		URL:       toolReq.Extra.Header.Get(urlHeader),
 		Token:     toolReq.Extra.Header.Get(tokenHeader),
 	})
-	if err != nil {
+	if err != nil && !apierrors.IsNotFound(err) {
 		zap.L().Error("failed to get provisioning cluster",
 			zap.String("tool", "InspectCluster"),
 			zap.String("cluster", params.ClusterName),
@@ -142,12 +143,19 @@ func (t *Tools) InspectCluster(ctx context.Context, toolReq *mcp.CallToolRequest
 	zap.L().Info("found provisioning cluster")
 
 	provCluster := provisioningV1.Cluster{}
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(provisioningClusterResource.Object, &provCluster)
-	if err != nil {
-		zap.L().Error("failed to convert to provisioning cluster",
-			zap.String("tool", "InspectCluster"),
-			zap.Error(err))
-		return nil, nil, err
+	if provisioningClusterResource != nil {
+		err = runtime.DefaultUnstructuredConverter.FromUnstructured(provisioningClusterResource.Object, &provCluster)
+		if err != nil {
+			zap.L().Error("failed to convert to provisioning cluster",
+				zap.String("tool", "InspectCluster"),
+				zap.Error(err))
+			return nil, nil, err
+		}
+	}
+
+	name := params.ClusterName
+	if provCluster.Name != "" {
+		name = provCluster.Name
 	}
 
 	// get the management cluster
@@ -155,7 +163,7 @@ func (t *Tools) InspectCluster(ctx context.Context, toolReq *mcp.CallToolRequest
 		Cluster:   "local",
 		Kind:      "managementcluster",
 		Namespace: "",
-		Name:      provCluster.Status.ClusterName,
+		Name:      name,
 		URL:       toolReq.Extra.Header.Get(urlHeader),
 		Token:     toolReq.Extra.Header.Get(tokenHeader),
 	})
@@ -226,7 +234,7 @@ func (t *Tools) InspectCluster(ctx context.Context, toolReq *mcp.CallToolRequest
 		namespace:     params.Namespace,
 		targetCluster: params.ClusterName,
 	})
-	if err != nil {
+	if err != nil && !apierrors.IsNotFound(err) {
 		zap.L().Error("failed to lookup capi machines",
 			zap.String("tool", "inspectCluster"),
 			zap.String("cluster", params.ClusterName),
@@ -247,6 +255,14 @@ func (t *Tools) InspectCluster(ctx context.Context, toolReq *mcp.CallToolRequest
 		URL:       toolReq.Extra.Header.Get(urlHeader),
 		Token:     toolReq.Extra.Header.Get(tokenHeader),
 	})
+	if err != nil && !apierrors.IsNotFound(err) {
+		zap.L().Error("failed to get provisioning log",
+			zap.String("tool", "inspectCluster"),
+			zap.String("namespace", provisioningLogNamespace),
+			zap.String("cluster", params.ClusterName),
+			zap.Error(err))
+		return nil, nil, err
+	}
 	resources = append(resources, log)
 
 	// get recent cluster events
@@ -287,7 +303,7 @@ func (t *Tools) InspectCluster(ctx context.Context, toolReq *mcp.CallToolRequest
 		}
 	}
 
-	mcpResponse, err := response.CreateMcpResponse(resources, "local")
+	mcpResponse, err := response.CreateMcpResponse(resources, params.ClusterName)
 	if err != nil {
 		zap.L().Error("failed to create mcp response", zap.String("tool", "inspectCluster"), zap.Error(err))
 		return nil, nil, err
