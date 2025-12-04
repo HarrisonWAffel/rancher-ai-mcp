@@ -28,7 +28,13 @@ func (t *Tools) GetResource(ctx context.Context, toolReq *mcp.CallToolRequest, p
 		Token:     toolReq.Extra.Header.Get(tokenHeader),
 	})
 	if err != nil {
-		zap.L().Error("failed to get resource", zap.String("tool", "getKubernetesResource"), zap.Error(err))
+		zap.L().Error("failed to get resource",
+			zap.String("tool", "getKubernetesResource"),
+			zap.String("cluster", params.Cluster),
+			zap.String("kind", params.Kind),
+			zap.String("namespace", params.Namespace),
+			zap.String("name", params.Name),
+			zap.Error(err))
 		return nil, nil, err
 	}
 
@@ -55,7 +61,12 @@ func (t *Tools) ListKubernetesResources(ctx context.Context, toolReq *mcp.CallTo
 		Token:     toolReq.Extra.Header.Get(tokenHeader),
 	})
 	if err != nil {
-		zap.L().Error("failed to list resources", zap.String("tool", "listKubernetesResource"), zap.Error(err))
+		zap.L().Error("failed to list resources",
+			zap.String("tool", "getKubernetesResource"),
+			zap.String("cluster", params.Cluster),
+			zap.String("kind", params.Kind),
+			zap.String("namespace", params.Namespace),
+			zap.Error(err))
 		return nil, nil, err
 	}
 
