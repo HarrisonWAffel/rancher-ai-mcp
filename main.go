@@ -129,6 +129,20 @@ func main() {
 		Returns a collection of kubernetes resources representing various aspects of the cluster.`,
 	}, tools.InspectCluster)
 	mcp.AddTool(mcpServer, &mcp.Tool{
+		Meta: mcp.Meta{
+			"requiresConfirmation": "true",
+			"confirmationMessage":  "This action may return many resources and as a result use a significant amount of tokens",
+		},
+		Name: "analyseCluster",
+		Description: `Returns a set of kubernetes resources that can be used to analyse the cluster for debugging and summary purposes.
+		This set of resources includes the provisioning cluster, its machine pools, the cluster API machines from those pools, a config map which includes provisioning log messages,
+		and cluster events from multiple namespaces.
+		Parameters:
+		cluster (string): the name of the provisioning cluster to inspect.
+		namespace (string, optional): the namespace within the local cluster that the provisioning cluster resource exists in.
+		Returns a collection of kubernetes resources representing various aspects of the cluster.`,
+	}, tools.InspectCluster)
+	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "inspectClusterMachines",
 		Description: `Returns all Cluster API Machines, Machine Sets, and Machine Deployments for the specified cluster.'
 		Parameters:

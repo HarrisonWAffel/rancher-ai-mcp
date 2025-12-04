@@ -162,7 +162,6 @@ func (t *Tools) InspectCluster(ctx context.Context, toolReq *mcp.CallToolRequest
 		zap.L().Error("failed to get management cluster",
 			zap.String("tool", "InspectCluster"),
 			zap.String("cluster", provCluster.Status.ClusterName),
-			zap.String("namespace", ns),
 			zap.Error(err))
 		return nil, nil, err
 	}
