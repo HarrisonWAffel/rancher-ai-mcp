@@ -145,8 +145,8 @@ func (t *Tools) InspectCluster(ctx context.Context, toolReq *mcp.CallToolRequest
 	}
 
 	name := params.Cluster
-	if provCluster.Name != "" {
-		name = provCluster.Name
+	if provCluster.Status.ClusterName != "" {
+		name = provCluster.Status.ClusterName
 	}
 
 	// get the management cluster

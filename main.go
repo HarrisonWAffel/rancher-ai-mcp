@@ -117,7 +117,7 @@ func main() {
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Meta: mcp.Meta{
 			"requiresConfirmation": "true",
-			"confirmationMessage":  "This action may return many resources and as a result use a significant amount of tokens",
+			"confirmationMessage":  "This action may return many resources and as a result use a significant amount of tokens.",
 		},
 		Name: "inspectCluster",
 		Description: `Returns a set of kubernetes resources that can be used to inspect the cluster for debugging and summary purposes.
@@ -131,7 +131,7 @@ func main() {
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Meta: mcp.Meta{
 			"requiresConfirmation": "true",
-			"confirmationMessage":  "This action may return many resources and as a result use a significant amount of tokens",
+			"confirmationMessage":  "This action may return many resources and as a result use a significant amount of tokens.",
 		},
 		Name: "analyseCluster",
 		Description: `Returns a set of kubernetes resources that can be used to analyse the cluster for debugging and summary purposes.
