@@ -169,7 +169,6 @@ func getClusterId(c resourceInterface, token string, url string, clusterNameOrID
 
 				// If the given identifier matches this display name, return its ID.
 				if displayName == clusterNameOrID {
-					zap.L().Info(fmt.Sprintf("found a cluster by display name %s but it does not match given name %s", displayName, clusterNameOrID))
 					return clusterID, nil
 				}
 			} else {
