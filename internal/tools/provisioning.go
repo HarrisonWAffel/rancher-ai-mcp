@@ -22,19 +22,19 @@ import (
 
 //go:generate:params
 type GetClusterMachineParams struct {
-	ClusterName string `json:"clusterName" jsonschema:"the name of the cluster the machines belong to"`
+	Cluster     string `json:"cluster" jsonschema:"the name of the cluster the machines belong to"`
 	MachineName string `json:"machineName" jsonschema:"the name of the machine to retrieve, if not set all machines for the cluster are returned"`
 }
 
 // GetClusterMachine returns the cluster API machine for a given provisioning cluster and machine name.
 func (t *Tools) GetClusterMachine(ctx context.Context, toolReq *mcp.CallToolRequest, params GetClusterMachineParams) (*mcp.CallToolResult, any, error) {
 	zap.L().Info("GetClusterMachine called",
-		zap.String("clusterName", params.ClusterName),
+		zap.String("clusterName", params.Cluster),
 		zap.String("machineName", params.MachineName))
 
 	machines, _, _, err := t.getCAPIMachineResources(ctx, toolReq, getCAPIMachineResourcesParams{
 		namespace:     "fleet-default",
-		targetCluster: params.ClusterName,
+		targetCluster: params.Cluster,
 		machineName:   params.MachineName,
 	})
 
@@ -54,7 +54,7 @@ func (t *Tools) GetClusterMachine(ctx context.Context, toolReq *mcp.CallToolRequ
 		}
 	}
 
-	mcpResponse, err := response.CreateMcpResponse(resources, params.ClusterName)
+	mcpResponse, err := response.CreateMcpResponse(resources, params.Cluster)
 	if err != nil {
 		zap.L().Error("failed to create mcp response", zap.String("tool", "inspectProvisioningCluster"), zap.Error(err))
 		return nil, nil, err
@@ -66,24 +66,24 @@ func (t *Tools) GetClusterMachine(ctx context.Context, toolReq *mcp.CallToolRequ
 
 //go:generate:params
 type InspectClusterMachinesParams struct {
-	ClusterName string `json:"clusterName" jsonschema:"the name of the provisioning cluster"`
-	Namespace   string `json:"namespace" jsonschema:"the namespace of the resource, defaults to fleet-local if not set"`
+	Cluster   string `json:"cluster" jsonschema:"the name of the provisioning cluster"`
+	Namespace string `json:"namespace" jsonschema:"the namespace of the resource, defaults to fleet-local if not set"`
 }
 
 // InspectClusterMachines returns the cluster API machines, machine sets, and machine deployments, for a given provisioning cluster.
 func (t *Tools) InspectClusterMachines(ctx context.Context, toolReq *mcp.CallToolRequest, params InspectClusterMachinesParams) (*mcp.CallToolResult, any, error) {
 	zap.L().Info("InspectClusterMachines invoked",
-		zap.String("clusterName", params.ClusterName),
+		zap.String("clusterName", params.Cluster),
 		zap.String("namespace", params.Namespace))
 
 	machines, machineSets, machineDeployments, err := t.getCAPIMachineResources(ctx, toolReq, getCAPIMachineResourcesParams{
 		namespace:     "fleet-default",
-		targetCluster: params.ClusterName,
+		targetCluster: params.Cluster,
 	})
 	if err != nil {
 		zap.L().Error("failed to lookup capi machine resources",
 			zap.String("tool", "GetClusterMachine"),
-			zap.String("machine", params.ClusterName),
+			zap.String("machine", params.Cluster),
 			zap.Error(err))
 		return nil, nil, err
 	}
@@ -93,7 +93,7 @@ func (t *Tools) InspectClusterMachines(ctx context.Context, toolReq *mcp.CallToo
 	resources = append(resources, machineSets...)
 	resources = append(resources, machineDeployments...)
 
-	mcpResponse, err := response.CreateMcpResponse(resources, params.ClusterName)
+	mcpResponse, err := response.CreateMcpResponse(resources, params.Cluster)
 	if err != nil {
 		zap.L().Error("failed to create mcp response", zap.String("tool", "inspectProvisioningCluster"), zap.Error(err))
 		return nil, nil, err
@@ -105,8 +105,8 @@ func (t *Tools) InspectClusterMachines(ctx context.Context, toolReq *mcp.CallToo
 
 //go:generate:params
 type InspectClusterParams struct {
-	ClusterName string `json:"clusterName" jsonschema:"the name of the provisioning cluster"`
-	Namespace   string `json:"namespace" jsonschema:"the namespace of the resource, defaults to fleet-local if not set"`
+	Cluster   string `json:"cluster" jsonschema:"the name of the provisioning cluster"`
+	Namespace string `json:"namespace" jsonschema:"the namespace of the resource, defaults to fleet-local if not set"`
 }
 
 // InspectCluster returns a set of kubernetes resources that can be used to inspect the cluster for debugging and summary purposes.
@@ -117,7 +117,7 @@ func (t *Tools) InspectCluster(ctx context.Context, toolReq *mcp.CallToolRequest
 	}
 
 	zap.L().Info("InspectCluster invoked",
-		zap.String("clusterName", params.ClusterName),
+		zap.String("clusterName", params.Cluster),
 		zap.String("namespace", ns))
 
 	var resources []*unstructured.Unstructured
@@ -127,14 +127,14 @@ func (t *Tools) InspectCluster(ctx context.Context, toolReq *mcp.CallToolRequest
 		Cluster:   "local",
 		Kind:      "provisioningcluster",
 		Namespace: ns,
-		Name:      params.ClusterName,
+		Name:      params.Cluster,
 		URL:       toolReq.Extra.Header.Get(urlHeader),
 		Token:     toolReq.Extra.Header.Get(tokenHeader),
 	})
 	if err != nil && !apierrors.IsNotFound(err) {
 		zap.L().Error("failed to get provisioning cluster",
 			zap.String("tool", "InspectCluster"),
-			zap.String("cluster", params.ClusterName),
+			zap.String("cluster", params.Cluster),
 			zap.String("namespace", ns),
 			zap.Error(err))
 		return nil, nil, err
@@ -153,7 +153,7 @@ func (t *Tools) InspectCluster(ctx context.Context, toolReq *mcp.CallToolRequest
 		}
 	}
 
-	name := params.ClusterName
+	name := params.Cluster
 	if provCluster.Name != "" {
 		name = provCluster.Name
 	}
@@ -232,12 +232,12 @@ func (t *Tools) InspectCluster(ctx context.Context, toolReq *mcp.CallToolRequest
 	// get all the CAPI resources for the cluster machines
 	machines, machineSets, machineDeployments, err := t.getCAPIMachineResources(ctx, toolReq, getCAPIMachineResourcesParams{
 		namespace:     params.Namespace,
-		targetCluster: params.ClusterName,
+		targetCluster: params.Cluster,
 	})
 	if err != nil && !apierrors.IsNotFound(err) {
 		zap.L().Error("failed to lookup capi machines",
 			zap.String("tool", "inspectCluster"),
-			zap.String("cluster", params.ClusterName),
+			zap.String("cluster", params.Cluster),
 			zap.String("namespace", ns),
 			zap.Error(err))
 	}
@@ -259,7 +259,7 @@ func (t *Tools) InspectCluster(ctx context.Context, toolReq *mcp.CallToolRequest
 		zap.L().Error("failed to get provisioning log",
 			zap.String("tool", "inspectCluster"),
 			zap.String("namespace", provisioningLogNamespace),
-			zap.String("cluster", params.ClusterName),
+			zap.String("cluster", params.Cluster),
 			zap.Error(err))
 		return nil, nil, err
 	}
@@ -303,7 +303,7 @@ func (t *Tools) InspectCluster(ctx context.Context, toolReq *mcp.CallToolRequest
 		}
 	}
 
-	mcpResponse, err := response.CreateMcpResponse(resources, params.ClusterName)
+	mcpResponse, err := response.CreateMcpResponse(resources, params.Cluster)
 	if err != nil {
 		zap.L().Error("failed to create mcp response", zap.String("tool", "inspectCluster"), zap.Error(err))
 		return nil, nil, err

@@ -123,7 +123,7 @@ func main() {
 		This set of resources includes the provisioning cluster, its machine pools, the cluster API machines from those pools, a config map which includes provisioning log messages,
 		and cluster events from multiple namespaces.
 		Parameters:
-		clusterName (string): the name of the provisioning cluster to inspect.
+		cluster (string): the name of the provisioning cluster to inspect.
 		namespace (string, optional): the namespace within the local cluster that the provisioning cluster resource exists in. Use fleet-default if nothing is provided.
 		Returns a collection of kubernetes resources representing various aspects of the cluster.`,
 	}, tools.InspectCluster)
@@ -131,7 +131,7 @@ func main() {
 		Name: "inspectClusterMachines",
 		Description: `Returns all Cluster API Machines, Machine Sets, and Machine Deployments for the specified cluster.'
 		Parameters:
-		clusterName (string): the name of the provisioning cluster to retrieve.
+		cluster (string): the name of the provisioning cluster to retrieve.
 		namespace (string, optional): the namespace within the local cluster that the provisioning cluster resource exists in. Use fleet-default if nothing is provided.
 		Returns a collection of kubernetes resources representing various aspects of the cluster and its cluster API machine resources.`,
 	}, tools.InspectClusterMachines)
@@ -139,7 +139,7 @@ func main() {
 		Name: "getClusterMachine",
 		Description: `Returns one cluster API machine resource and the associated machine set and machine deployment, which when combined represent a single kubernetes node.'
 		Parameters:
-		clusterName (string): the name of the provisioning cluster that the machines belong to.
+		cluster (string): the name of the provisioning cluster that the machines belong to.
 		machineName (string): the name of the machine that "
 		Returns one or more cluster API machine objects.`,
 	}, tools.GetClusterMachine)
