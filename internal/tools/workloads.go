@@ -2,7 +2,10 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"mcp/internal/tools/converter"
+	"strings"
 
 	"mcp/internal/tools/response"
 
@@ -180,4 +183,69 @@ func (t *Tools) GetDeploymentDetails(ctx context.Context, toolReq *mcp.CallToolR
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{&mcp.TextContent{Text: mcpResponse}},
 	}, nil, nil
+}
+
+type GetClusterImagesParams struct {
+	Clusters []string `json:"clusters" jsonschema:"the clusters where images are returned"`
+}
+
+func (t *Tools) GetClusterImages(ctx context.Context, toolReq *mcp.CallToolRequest, params GetClusterImagesParams) (*mcp.CallToolResult, any, error) {
+	zap.L().Info("getClusterImages called",
+		zap.String("clusters", strings.Join(params.Clusters, ", ")))
+
+	var clusters []string
+	if len(params.Clusters) == 0 {
+		clusterList, err := t.getResources(ctx, ListParams{
+			Cluster: LocalCluster,
+			Kind:    converter.ManagementClusterResourceKind,
+			URL:     toolReq.Extra.Header.Get(urlHeader),
+			Token:   toolReq.Extra.Header.Get(tokenHeader),
+		})
+		if err != nil {
+			zap.L().Error("failed to get clusters", zap.String("tool", "getClusterImages"), zap.Error(err))
+			return nil, nil, fmt.Errorf("failed to get clusters: %w", err)
+		}
+		for _, cluster := range clusterList {
+			clusters = append(clusters, cluster.GetName())
+		}
+	} else {
+		clusters = params.Clusters
+	}
+
+	imagesInClusters := map[string][]string{}
+
+	for _, cluster := range clusters {
+		var images []string
+		clientset, err := t.client.CreateClientSet(toolReq.Extra.Header.Get(tokenHeader), toolReq.Extra.Header.Get(urlHeader), cluster)
+		if err != nil {
+			zap.L().Error("failed to create clientset", zap.String("tool", "getClusterImages"), zap.Error(err))
+			return nil, nil, fmt.Errorf("failed to create clientset: %w", err)
+		}
+		pods, err := clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
+		if err != nil {
+			zap.L().Error("failed to get pods", zap.String("tool", "getClusterImages"), zap.Error(err))
+			return nil, nil, fmt.Errorf("failed to get pods: %w", err)
+		}
+		for _, pod := range pods.Items {
+			for _, container := range pod.Spec.InitContainers {
+				images = append(images, container.Image)
+			}
+			for _, container := range pod.Spec.Containers {
+				images = append(images, container.Image)
+			}
+		}
+
+		imagesInClusters[cluster] = images
+	}
+
+	response, err := json.Marshal(imagesInClusters)
+	if err != nil {
+		zap.L().Error("failed to create response", zap.String("tool", "getClusterImages"), zap.Error(err))
+		return nil, nil, fmt.Errorf("failed to marsha JSON: %w", err)
+	}
+
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{&mcp.TextContent{Text: string(response)}},
+	}, nil, nil
+
 }

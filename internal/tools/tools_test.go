@@ -139,13 +139,13 @@ func TestGetKubernetesResource(t *testing.T) {
 		expectedError  string
 	}{
 		"get pod list": {
-			params: ListKubernetesResourcesParams{Kind: "pod", Namespace: "default", Cluster: "local"},
+			params: ListKubernetesResourcesParams{Kind: "pod", namespace: "default", Cluster: "local"},
 			mockClient: func() K8sClient {
 				mock := mocks.NewMockK8sClient(ctlr)
 				mock.EXPECT().GetResources(context.TODO(), k8s.ListParams{
 					Cluster:   "local",
 					Kind:      "pod",
-					Namespace: "default",
+					namespace: "default",
 					URL:       fakeUrl,
 					Token:     fakeToken,
 				}).Return([]*unstructured.Unstructured{podUnstructured(), podUnstructured()}, nil)
@@ -155,13 +155,13 @@ func TestGetKubernetesResource(t *testing.T) {
 			expectedResult: `{"llm":"[{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"name\":\"rancher\"},\"spec\":{\"containers\":[{\"image\":\"rancher:latest\",\"name\":\"rancher-container\"}]}},{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"name\":\"rancher\"},\"spec\":{\"containers\":[{\"image\":\"rancher:latest\",\"name\":\"rancher-container\"}]}}]","uiContext":[{"namespace":"default","kind":"Pod","cluster":"local","name":"rancher","type":"pod"},{"namespace":"default","kind":"Pod","cluster":"local","name":"rancher","type":"pod"}]}`,
 		},
 		"error fetching pod list": {
-			params: ListKubernetesResourcesParams{Kind: "pod", Namespace: "default", Cluster: "local"},
+			params: ListKubernetesResourcesParams{Kind: "pod", namespace: "default", Cluster: "local"},
 			mockClient: func() K8sClient {
 				mock := mocks.NewMockK8sClient(ctlr)
 				mock.EXPECT().GetResources(context.TODO(), k8s.ListParams{
 					Cluster:   "local",
 					Kind:      "pod",
-					Namespace: "default",
+					namespace: "default",
 					URL:       fakeUrl,
 					Token:     fakeToken,
 				}).Return(nil, fmt.Errorf("unexpected error"))
@@ -208,7 +208,7 @@ func TestUpdateKubernetesResource(t *testing.T) {
 		expectedError  string
 	}{
 		"patch pod": {
-			params: UpdateKubernetesResourceParams{Name: "rancher", Kind: "pod", Namespace: "default", Cluster: "local", Patch: patchData},
+			params: UpdateKubernetesResourceParams{Name: "rancher", Kind: "pod", namespace: "default", Cluster: "local", Patch: patchData},
 			mockClient: func() K8sClient {
 				mockResourceInterface := mocks.NewMockResourceInterface(ctlr)
 				patchBytes, _ := json.Marshal(patchData)
@@ -222,7 +222,7 @@ func TestUpdateKubernetesResource(t *testing.T) {
 			expectedResult: `{"llm":"[{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"name\":\"rancher\"},\"spec\":{\"containers\":[{\"image\":\"rancher:latest\",\"name\":\"rancher-container\"}]}}]","uiContext":[{"namespace":"default","kind":"Pod","cluster":"local","name":"rancher","type":"pod"}]}`,
 		},
 		"error patching pod": {
-			params: UpdateKubernetesResourceParams{Name: "rancher", Kind: "pod", Namespace: "default", Cluster: "local", Patch: patchData},
+			params: UpdateKubernetesResourceParams{Name: "rancher", Kind: "pod", namespace: "default", Cluster: "local", Patch: patchData},
 			mockClient: func() K8sClient {
 				mockResourceInterface := mocks.NewMockResourceInterface(ctlr)
 				patchBytes, _ := json.Marshal(patchData)
@@ -269,7 +269,7 @@ func TestCreateKubernetesResource(t *testing.T) {
 			params: CreateKubernetesResourceParams{
 				Name:      "rancher",
 				Kind:      "pod",
-				Namespace: "default",
+				namespace: "default",
 				Cluster:   "local",
 				Resource: map[string]interface{}{
 					"apiVersion": "v1",
@@ -303,7 +303,7 @@ func TestCreateKubernetesResource(t *testing.T) {
 			params: CreateKubernetesResourceParams{
 				Name:      "rancher",
 				Kind:      "pod",
-				Namespace: "default",
+				namespace: "default",
 				Cluster:   "local",
 				Resource: map[string]interface{}{
 					"apiVersion": "v1",
@@ -362,7 +362,7 @@ func TestInspectPod(t *testing.T) {
 		"inspect pod": {
 			params: SpecificResourceParams{
 				Name:      "rancher",
-				Namespace: "default",
+				namespace: "default",
 				Cluster:   "local",
 			},
 			mockClient: func() K8sClient {
@@ -370,14 +370,14 @@ func TestInspectPod(t *testing.T) {
 				pod := &corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "rancher",
-						Namespace: "default",
+						namespace: "default",
 					},
 				}
 				mock.EXPECT().CreateClientSet(fakeToken, fakeUrl, "local").Return(fake.NewClientset(pod), nil)
 				mock.EXPECT().GetResource(context.TODO(), k8s.GetParams{
 					Cluster:   "local",
 					Kind:      "pod",
-					Namespace: "default",
+					namespace: "default",
 					Name:      "rancher",
 					URL:       fakeUrl,
 					Token:     fakeToken,
@@ -407,7 +407,7 @@ func TestInspectPod(t *testing.T) {
 				mock.EXPECT().GetResource(context.TODO(), k8s.GetParams{
 					Cluster:   "local",
 					Kind:      "replicaset",
-					Namespace: "default",
+					namespace: "default",
 					Name:      "my-replicaset",
 					URL:       fakeUrl,
 					Token:     fakeToken,
@@ -429,7 +429,7 @@ func TestInspectPod(t *testing.T) {
 				mock.EXPECT().GetResource(context.TODO(), k8s.GetParams{
 					Cluster:   "local",
 					Kind:      "Deployment",
-					Namespace: "default",
+					namespace: "default",
 					Name:      "my-deployment",
 					URL:       fakeUrl,
 					Token:     fakeToken,
@@ -443,7 +443,7 @@ func TestInspectPod(t *testing.T) {
 				mock.EXPECT().GetResource(context.TODO(), k8s.GetParams{
 					Cluster:   "local",
 					Kind:      "pod.metrics.k8s.io",
-					Namespace: "default",
+					namespace: "default",
 					Name:      "rancher",
 					URL:       fakeUrl,
 					Token:     fakeToken,

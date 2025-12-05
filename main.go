@@ -76,6 +76,20 @@ func main() {
 		cluster (string): The name of the Kubernetes cluster.`},
 		tools.ListKubernetesResources)
 	mcp.AddTool(mcpServer, &mcp.Tool{
+		Meta: mcp.Meta{
+			"requiresConfirmation": "true",
+			"confirmationMessage":  "I will <b>{create}</b> the <code>{name}</code> resource in the <code>{namespace}</code> namespace of the <code>{cluster}</code> cluster using the value <code>{resource}</code>. Are you sure you want to proceed?",
+		},
+		Name: "createKubernetesResource",
+		Description: `Creates a resource in a kubernetes cluster.'
+		Parameters:
+		kind (string): The type of Kubernetes resource to patch (e.g., Pod, Deployment, Service).
+		namespace (string): The namespace where the resource is located. It must be empty for cluster-wide resources.
+		name (string): The name of the specific resource to patch.
+		cluster (string): The name of the Kubernetes cluster. Empty for single container pods.
+		resource (json): Resource to be created. This must be a JSON object.`},
+		tools.CreateKubernetesResource)
+	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "inspectPod",
 		Description: `Returns all information related to a Pod. It includes its parent Deployment or StatefulSet, the CPU and memory consumption and the logs. It must be used for troubleshooting problems with pods.'
 		Parameters:
@@ -98,16 +112,6 @@ func main() {
 		cluster (string): The name of the Kubernetes cluster.`},
 		tools.GetNodes)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "createKubernetesResource",
-		Description: `Creates a resource in a kubernetes cluster.'
-		Parameters:
-		kind (string): The type of Kubernetes resource to patch (e.g., Pod, Deployment, Service).
-		namespace (string): The namespace where the resource is located. It must be empty for cluster-wide resources.
-		name (string): The name of the specific resource to patch.
-		cluster (string): The name of the Kubernetes cluster. Empty for single container pods.
-		resource (json): Resource to be created. This must be a JSON object.`},
-		tools.CreateKubernetesResource)
-	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "getClusterImages",
 		Description: `Returns a list of all container images for the specified clusters.'
 		Parameters:
@@ -115,32 +119,28 @@ func main() {
 		tools.GetClusterImages)
 	// --- Provisioning Tools --- //
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Meta: mcp.Meta{
-			"requiresConfirmation": "true",
-		},
 		Name: "inspectCluster",
 		Description: `Returns a set of kubernetes resources that can be used to inspect the cluster for debugging and summary purposes.
 		This set of resources includes the provisioning cluster, its machine pools, the cluster API machines from those pools, a config map which includes provisioning log messages,
-		and cluster events from multiple namespaces. Utilize this tool to handle requests which ask about general debugging, status reports, provisioning errors, or provisioning summaries.
-		This tool uses a large amount of data, so it is recommended to only use it when necessary.'
+		and cluster events from multiple namespaces.
 		Parameters:
-		clusterName (string): the name of the provisioning cluster to inspect.
-		namespace (string, optional): the namespace within the local cluster that the provisioning cluster resource exists in. Use fleet-default if nothing is provided.
+		cluster (string): the name of the provisioning cluster to inspect.
+		namespace (string, optional): the namespace within the local cluster that the provisioning cluster resource exists in.
 		Returns a collection of kubernetes resources representing various aspects of the cluster.`,
 	}, tools.InspectCluster)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "inspectClusterMachines",
-		Description: `Returns all Cluster API Machines, Machine Sets, and Machine Deployments for the specified cluster. Useful for advanced debugging and inspection of machines.'	
+		Description: `Returns all Cluster API Machines, Machine Sets, and Machine Deployments for the specified cluster.'
 		Parameters:
-		clusterName (string): the name of the provisioning cluster to retrieve.
-		namespace (string, optional): the namespace within the local cluster that the provisioning cluster resource exists in. Use fleet-default if nothing is provided.
+		cluster (string): the name of the provisioning cluster to retrieve.
+		namespace (string, optional): the namespace within the local cluster that the provisioning cluster resource exists in.
 		Returns a collection of kubernetes resources representing various aspects of the cluster and its cluster API machine resources.`,
 	}, tools.InspectClusterMachines)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "getClusterMachine",
-		Description: `Returns one cluster API machine resource and the associated machine set and machine deployment, which when combined represent a single kubernetes node. Use this tool when you need to inspect or debug a specific machine within a cluster.'
+		Description: `Returns one cluster API machine resource and the associated machine set and machine deployment, which when combined represent a single kubernetes node.'
 		Parameters:
-		clusterName (string): the name of the provisioning cluster that the machines belong to.
+		cluster (string): the name of the provisioning cluster that the machines belong to.
 		machineName (string): the name of the machine that "
 		Returns one or more cluster API machine objects.`,
 	}, tools.GetClusterMachine)

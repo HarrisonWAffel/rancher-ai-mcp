@@ -53,7 +53,7 @@ func (c *Client) CreateClientSet(token string, url string, cluster string) (kube
 	return kubernetes.NewForConfig(restConfig)
 }
 
-// GetResourceInterface returns a dynamic resource interface for the given Token, URL, Namespace, and GroupVersionResource.
+// GetResourceInterface returns a dynamic resource interface for the given Token, URL, namespace, and GroupVersionResource.
 func (c *Client) GetResourceInterface(token string, url string, namespace string, cluster string, gvr schema.GroupVersionResource) (dynamic.ResourceInterface, error) {
 	clusterID, err := getClusterId(c, token, url, cluster)
 	if err != nil {
@@ -169,7 +169,6 @@ func getClusterId(c resourceInterface, token string, url string, clusterNameOrID
 
 				// If the given identifier matches this display name, return its ID.
 				if displayName == clusterNameOrID {
-					zap.L().Info(fmt.Sprintf("found a cluster by display name %s but it does not match given name %s", displayName, clusterNameOrID))
 					return clusterID, nil
 				}
 			} else {

@@ -23,6 +23,7 @@ const (
 	tokenHeader      = "R_token"
 	urlHeader        = "R_url"
 	podLogsTailLines = 50
+	LocalCluster     = "local"
 )
 
 // GetParams holds the parameters required to get a resource from k8s.
