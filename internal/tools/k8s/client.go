@@ -4,8 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"regexp"
 	"sync"
 
+	"mcp/internal/tools/converter"
+
+	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -15,13 +19,13 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	"mcp/internal/tools/converter"
 )
 
 const skipTLSVerifyEnvVar = "INSECURE_SKIP_TLS"
 
 var clusterIdsCache = sync.Map{}
 var clustersDisplayNameToIDCache = sync.Map{}
+var mgmtNameRegex = regexp.MustCompile("^c-[a-z0-9]{5}$")
 
 type resourceInterface interface {
 	GetResourceInterface(token string, url string, namespace string, cluster string, gvr schema.GroupVersionResource) (dynamic.ResourceInterface, error)
@@ -49,7 +53,7 @@ func (c *Client) CreateClientSet(token string, url string, cluster string) (kube
 	return kubernetes.NewForConfig(restConfig)
 }
 
-// GetResourceInterface returns a dynamic resource interface for the given Token, URL, Namespace, and GroupVersionResource.
+// GetResourceInterface returns a dynamic resource interface for the given Token, URL, namespace, and GroupVersionResource.
 func (c *Client) GetResourceInterface(token string, url string, namespace string, cluster string, gvr schema.GroupVersionResource) (dynamic.ResourceInterface, error) {
 	clusterID, err := getClusterId(c, token, url, cluster)
 	if err != nil {
@@ -127,13 +131,14 @@ func getClusterId(c resourceInterface, token string, url string, clusterNameOrID
 	}
 
 	// try to fetch the cluster directly by its ID
-	clusterInterface, err := c.GetResourceInterface(token, url, "", "local", converter.K8sKindsToGVRs["cluster"])
+	clusterInterface, err := c.GetResourceInterface(token, url, "", "local", converter.K8sKindsToGVRs["managementcluster"])
 	if err != nil {
 		return "", err
 	}
 
 	cluster, err := clusterInterface.Get(context.Background(), clusterNameOrID, metav1.GetOptions{})
 	if err != nil {
+		zap.L().Info("could not find cluster by name or id", zap.String("nameOrId", clusterNameOrID))
 		if !errors.IsNotFound(err) {
 			return "", err
 		}
@@ -143,10 +148,12 @@ func getClusterId(c resourceInterface, token string, url string, clusterNameOrID
 		if err != nil {
 			return "", err
 		}
+		zap.L().Info(fmt.Sprintf("found %d cluster objects", len(clusters.Items)))
 		for _, cluster := range clusters.Items {
 			clusterID := cluster.GetName()
 			clusterIdsCache.Store(clusterID, struct{}{})
-
+			zap.L().Info(fmt.Sprintf("using %s cluster", clusterID),
+				zap.String("rawCluster", fmt.Sprintf("%+v", cluster.Object)))
 			displayName, found, err := unstructured.NestedString(
 				cluster.Object,
 				"spec",
@@ -157,12 +164,15 @@ func getClusterId(c resourceInterface, token string, url string, clusterNameOrID
 			}
 
 			if found {
+				zap.L().Info("found a cluster by display name")
 				clustersDisplayNameToIDCache.Store(displayName, clusterID)
 
 				// If the given identifier matches this display name, return its ID.
 				if displayName == clusterNameOrID {
 					return clusterID, nil
 				}
+			} else {
+				zap.L().Info("did not find cluster by display name", zap.String("displayName", displayName))
 			}
 		}
 

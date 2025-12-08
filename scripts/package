@@ -1,0 +1,38 @@
+#!/bin/bash
+
+set -e
+
+usage() {
+  echo "Usage: $0 -r <repository> -t <tag> [-p <platform>] [-u]"
+  echo "  -u    Push the image to the repository after build"
+  exit 1
+}
+
+PUSH_IMAGE=0
+
+while getopts "r:t:p:u" opt; do
+  case $opt in
+    r) REPO="$OPTARG" ;;
+    t) TAG="$OPTARG" ;;
+    p) PLATFORM="$OPTARG" ;;
+    u) PUSH_IMAGE=1 ;;
+    *) usage ;;
+  esac
+done
+
+if [[ -z "$REPO" || -z "$TAG" ]]; then
+  usage
+fi
+
+BUILD_CMD="docker buildx build -f package/Dockerfile -t ${REPO}:${TAG} ."
+if [[ -n "$PLATFORM" ]]; then
+  BUILD_CMD+=" --platform $PLATFORM"
+fi
+
+if [[ $PUSH_IMAGE -eq 1 ]]; then
+  BUILD_CMD+=" --push"
+else
+  BUILD_CMD+=" --load"
+fi
+
+eval $BUILD_CMD

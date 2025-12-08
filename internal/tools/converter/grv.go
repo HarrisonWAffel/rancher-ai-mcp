@@ -2,6 +2,17 @@ package converter
 
 import "k8s.io/apimachinery/pkg/runtime/schema"
 
+const (
+	CAPIMachineResourceKind           = "capimachine"
+	CAPIClusterResourceKind           = "capicluster"
+	CAPIMachineSetResourceKind        = "machineset"
+	CAPIMachineDeploymentResourceKind = "machinedeployment"
+
+	ProvisioningClusterResourceKind      = "provisioningcluster"
+	ManagementClusterResourceKind        = "managementcluster"
+	ClusterRegistrationTokenResourceKind = "clusterregistrationtoken"
+)
+
 var K8sKindsToGVRs = map[string]schema.GroupVersionResource{
 	// --- CORE Kubernetes Resources (Group: "") ---
 	"pod":                   {Group: "", Version: "v1", Resource: "pods"},
@@ -60,16 +71,19 @@ var K8sKindsToGVRs = map[string]schema.GroupVersionResource{
 	"pod.metrics.k8s.io":  {Group: "metrics.k8s.io", Version: "v1beta1", Resource: "pods"},
 
 	// --- RANCHER CORE Resources (Group: "management.cattle.io") ---
-	"cluster":                    {Group: "management.cattle.io", Version: "v3", Resource: "clusters"},
-	"project":                    {Group: "management.cattle.io", Version: "v3", Resource: "projects"},
-	"user":                       {Group: "management.cattle.io", Version: "v3", Resource: "users"},
-	"roletemplate":               {Group: "management.cattle.io", Version: "v3", Resource: "roletemplates"},
-	"globalrole":                 {Group: "management.cattle.io", Version: "v3", Resource: "globalroles"},
-	"globalrolebinding":          {Group: "management.cattle.io", Version: "v3", Resource: "globalrolebindings"},
-	"clusterroletemplatebinding": {Group: "management.cattle.io", Version: "v3", Resource: "clusterroletemplatebindings"},
-	"projectroletemplatebinding": {Group: "management.cattle.io", Version: "v3", Resource: "projectroletemplatebindings"},
-	"nodetemplate":               {Group: "management.cattle.io", Version: "v3", Resource: "nodetemplates"},
-	"nodedriver":                 {Group: "management.cattle.io", Version: "v3", Resource: "nodedrivers"},
+	ManagementClusterResourceKind:        {Group: "management.cattle.io", Version: "v3", Resource: "clusters"},
+	"project":                            {Group: "management.cattle.io", Version: "v3", Resource: "projects"},
+	"user":                               {Group: "management.cattle.io", Version: "v3", Resource: "users"},
+	"roletemplate":                       {Group: "management.cattle.io", Version: "v3", Resource: "roletemplates"},
+	"globalrole":                         {Group: "management.cattle.io", Version: "v3", Resource: "globalroles"},
+	"globalrolebinding":                  {Group: "management.cattle.io", Version: "v3", Resource: "globalrolebindings"},
+	"clusterroletemplatebinding":         {Group: "management.cattle.io", Version: "v3", Resource: "clusterroletemplatebindings"},
+	"projectroletemplatebinding":         {Group: "management.cattle.io", Version: "v3", Resource: "projectroletemplatebindings"},
+	"nodetemplate":                       {Group: "management.cattle.io", Version: "v3", Resource: "nodetemplates"},
+	"nodedriver":                         {Group: "management.cattle.io", Version: "v3", Resource: "nodedrivers"},
+	ClusterRegistrationTokenResourceKind: {Group: "management.cattle.io", Version: "v3", Resource: "clusterregistrationtokens"},
+	// --- RANCHER CORE Resources (Group: "provisioning.cattle.io") ---
+	ProvisioningClusterResourceKind: {Group: "provisioning.cattle.io", Version: "v1", Resource: "clusters"},
 
 	// --- RANCHER FLEET Resources (Group: "fleet.cattle.io") ---
 	"bundle":           {Group: "fleet.cattle.io", Version: "v1alpha1", Resource: "bundles"},
@@ -80,4 +94,10 @@ var K8sKindsToGVRs = map[string]schema.GroupVersionResource{
 
 	// --- RANCHER CATTLE Resources (Group: "cattle.io") ---
 	"setting": {Group: "management.cattle.io", Version: "v3", Resource: "settings"},
+
+	// --- CLUSTER API Resources (Group: "cluster.x-k8s.io") ---
+	CAPIClusterResourceKind:           {Group: "cluster.x-k8s.io", Version: "v1beta1", Resource: "clusters"},
+	CAPIMachineResourceKind:           {Group: "cluster.x-k8s.io", Version: "v1beta1", Resource: "machines"},
+	CAPIMachineSetResourceKind:        {Group: "cluster.x-k8s.io", Version: "v1beta1", Resource: "machinesets"},
+	CAPIMachineDeploymentResourceKind: {Group: "cluster.x-k8s.io", Version: "v1beta1", Resource: "machinedeployments"},
 }
