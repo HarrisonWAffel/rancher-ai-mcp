@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 type ScaleNodePoolParameters struct {
@@ -81,13 +82,13 @@ func (t *Tools) ScaleClusterNodePool(ctx context.Context, toolReq *mcp.CallToolR
 		return nil, nil, fmt.Errorf("cannot specify both amountToAdd and amountToSubtract")
 	}
 
-	found := false
+	poolIndex := -1
 	for i := range provCluster.Spec.RKEConfig.MachinePools {
 		pool := &provCluster.Spec.RKEConfig.MachinePools[i]
 		// accept either the concrete node pool name, or the node pool name prefixed with the cluster name (as seen in the Rancher UI)
 		if params.NodePoolName == pool.Name || params.NodePoolName == provCluster.Name+"-"+pool.Name {
 			log.Debug("node pool found in cluster RKEConfig, updating desired size", zap.Int32("current_size", *pool.Quantity))
-			found = true
+			poolIndex = i
 
 			if amountToAdd != 0 {
 				desiredSize = *pool.Quantity + amountToAdd
@@ -107,42 +108,39 @@ func (t *Tools) ScaleClusterNodePool(ctx context.Context, toolReq *mcp.CallToolR
 				return nil, nil, fmt.Errorf("A node pool cannot be scaled to 0 nodes or a negative number of nodes")
 			}
 
-			pool.Quantity = &desiredSize
 			break
 		}
 	}
 
-	if !found {
+	if poolIndex == -1 {
 		err = fmt.Errorf("node pool %s not found in cluster %s", params.NodePoolName, params.Cluster)
 		log.Error(err.Error())
 		return nil, nil, err
 	}
 
-	objBytes, err := json.Marshal(provCluster)
-	if err != nil {
-		log.Error("failed to marshal resource", zap.Error(err))
-		return nil, nil, fmt.Errorf("failed to marshal resource: %w", err)
+	patch := []map[string]any{
+		{
+			"op":    "replace",
+			"path":  fmt.Sprintf("/spec/rkeConfig/machinePools/%d/quantity", poolIndex),
+			"value": desiredSize,
+		},
 	}
 
-	unstructuredObj := &unstructured.Unstructured{}
-	if err := json.Unmarshal(objBytes, unstructuredObj); err != nil {
-		log.Error("failed to create unstructured resource", zap.Error(err))
-		return nil, nil, fmt.Errorf("failed to create unstructured object: %w", err)
+	patchBytes, err := json.Marshal(patch)
+	if err != nil {
+		log.Error("failed to marshal patch", zap.Error(err))
+		return nil, nil, fmt.Errorf("failed to marshal patch: %w", err)
 	}
 
-	log.Debug("Updating prov cluster with new node pool size")
-	_, err = resourceInterface.Update(ctx, unstructuredObj, metav1.UpdateOptions{})
+	log.Debug("Patching prov cluster with new node pool size", zap.String("patch", string(patchBytes)))
+	patchObj, err := resourceInterface.Patch(ctx, params.Cluster, types.JSONPatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
-		log.Error("failed to update provisioning cluster with new node pool size", zap.Error(err))
+		log.Error("failed to patch provisioning cluster with new node pool size", zap.Error(err))
 		return nil, nil, err
 	}
-	log.Debug("Successfully updated provisioning cluster with new node pool size")
+	log.Debug("Successfully patched provisioning cluster with new node pool size")
 
-	mcpResponse, err := response.CreateMcpResponse([]*unstructured.Unstructured{{
-		Object: map[string]interface{}{
-			"message": fmt.Sprintf("Successfully scaled node pool %s to desired size %d for cluster %s", params.NodePoolName, desiredSize, params.Cluster),
-		},
-	}}, params.Cluster)
+	mcpResponse, err := response.CreateMcpResponse([]*unstructured.Unstructured{patchObj}, params.Cluster)
 	if err != nil {
 		log.Error("failed to create mcp response", zap.Error(err))
 		return nil, nil, err
