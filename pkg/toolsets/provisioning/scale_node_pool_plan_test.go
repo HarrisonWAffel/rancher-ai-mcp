@@ -15,7 +15,7 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-func TestScaleNodePool(t *testing.T) {
+func TestScaleNodePoolPlan(t *testing.T) {
 	tests := []struct {
 		name           string
 		fakeClientset  kubernetes.Interface
@@ -44,78 +44,24 @@ func TestScaleNodePool(t *testing.T) {
 				DesiredSize:  3,
 			},
 			expectedError: "",
-			expectedResult: `{
-  "llm": [
-    {
-      "apiVersion": "provisioning.cattle.io/v1",
-      "kind": "Cluster",
-      "metadata": {
-        "name": "test-cluster",
-        "namespace": "fleet-default"
-      },
-      "spec": {
-        "localClusterAuthEndpoint": {},
-        "rkeConfig": {
-          "chartValues": null,
-          "dataDirectories": {},
-          "machineGlobalConfig": null,
-          "machinePoolDefaults": {},
-          "machinePools": [
-            {
-              "controlPlaneRole": true,
-              "etcdRole": true,
-              "name": "test-nodepool",
-              "quantity": 3,
-              "workerRole": true
-            }
-          ],
-          "upgradeStrategy": {
-            "controlPlaneDrainOptions": {
-              "deleteEmptyDirData": false,
-              "disableEviction": false,
-              "enabled": false,
-              "force": false,
-              "gracePeriod": 0,
-              "ignoreDaemonSets": null,
-              "ignoreErrors": false,
-              "postDrainHooks": null,
-              "preDrainHooks": null,
-              "skipWaitForDeleteTimeoutSeconds": 0,
-              "timeout": 0
-            },
-            "workerDrainOptions": {
-              "deleteEmptyDirData": false,
-              "disableEviction": false,
-              "enabled": false,
-              "force": false,
-              "gracePeriod": 0,
-              "ignoreDaemonSets": null,
-              "ignoreErrors": false,
-              "postDrainHooks": null,
-              "preDrainHooks": null,
-              "skipWaitForDeleteTimeoutSeconds": 0,
-              "timeout": 0
-            }
-          }
-        }
-      },
-      "status": {
-        "clusterName": "c-m-abc123",
-        "observedGeneration": 0,
-        "ready": true
+			expectedResult: `[
+  {
+    "type": "update",
+    "payload": [
+      {
+        "op": "replace",
+        "path": "/spec/rkeConfig/machinePools/0/quantity",
+        "value": 3
       }
-    }
-  ],
-  "uiContext": [
-    {
-      "namespace": "fleet-default",
-      "kind": "Cluster",
-      "cluster": "test-cluster",
+    ],
+    "resource": {
       "name": "test-cluster",
-      "type": "provisioning.cattle.io.cluster"
+      "kind": "provisioningcluster",
+      "cluster": "local",
+      "namespace": "fleet-default"
     }
-  ]
-}`,
+  }
+]`,
 		},
 		{
 			name:          "refuse to scale etcd node pool below 3 nodes",
@@ -173,83 +119,24 @@ func TestScaleNodePool(t *testing.T) {
 				DesiredSize:  1,
 			},
 			expectedError: "",
-			expectedResult: `{
-  "llm": [
-    {
-      "apiVersion": "provisioning.cattle.io/v1",
-      "kind": "Cluster",
-      "metadata": {
-        "name": "test-cluster",
-        "namespace": "fleet-default"
-      },
-      "spec": {
-        "localClusterAuthEndpoint": {},
-        "rkeConfig": {
-          "chartValues": null,
-          "dataDirectories": {},
-          "machineGlobalConfig": null,
-          "machinePoolDefaults": {},
-          "machinePools": [
-            {
-              "controlPlaneRole": true,
-              "etcdRole": true,
-              "name": "test-nodepool-etcd",
-              "quantity": 3,
-              "workerRole": true
-            },
-            {
-              "name": "test-nodepool",
-              "quantity": 1,
-              "workerRole": true
-            }
-          ],
-          "upgradeStrategy": {
-            "controlPlaneDrainOptions": {
-              "deleteEmptyDirData": false,
-              "disableEviction": false,
-              "enabled": false,
-              "force": false,
-              "gracePeriod": 0,
-              "ignoreDaemonSets": null,
-              "ignoreErrors": false,
-              "postDrainHooks": null,
-              "preDrainHooks": null,
-              "skipWaitForDeleteTimeoutSeconds": 0,
-              "timeout": 0
-            },
-            "workerDrainOptions": {
-              "deleteEmptyDirData": false,
-              "disableEviction": false,
-              "enabled": false,
-              "force": false,
-              "gracePeriod": 0,
-              "ignoreDaemonSets": null,
-              "ignoreErrors": false,
-              "postDrainHooks": null,
-              "preDrainHooks": null,
-              "skipWaitForDeleteTimeoutSeconds": 0,
-              "timeout": 0
-            }
-          }
-        }
-      },
-      "status": {
-        "clusterName": "c-m-abc123",
-        "observedGeneration": 0,
-        "ready": true
+			expectedResult: `[
+  {
+    "type": "update",
+    "payload": [
+      {
+        "op": "replace",
+        "path": "/spec/rkeConfig/machinePools/1/quantity",
+        "value": 1
       }
-    }
-  ],
-  "uiContext": [
-    {
-      "namespace": "fleet-default",
-      "kind": "Cluster",
-      "cluster": "test-cluster",
+    ],
+    "resource": {
       "name": "test-cluster",
-      "type": "provisioning.cattle.io.cluster"
+      "kind": "provisioningcluster",
+      "cluster": "local",
+      "namespace": "fleet-default"
     }
-  ]
-}`,
+  }
+]`,
 		},
 		{
 			name:          "fail to provide desired size or amount to add/subtract",
@@ -321,76 +208,24 @@ func TestScaleNodePool(t *testing.T) {
 				AmountToAdd:      1,
 			},
 			expectedError: "",
-			expectedResult: `{
-  "llm": [
-    {
-      "apiVersion": "provisioning.cattle.io/v1",
-      "kind": "Cluster",
-      "metadata": {
-        "name": "test-cluster",
-        "namespace": "fleet-default"
-      },
-      "spec": {
-        "localClusterAuthEndpoint": {},
-        "rkeConfig": {
-          "chartValues": null,
-          "dataDirectories": {},
-          "machineGlobalConfig": null,
-          "machinePoolDefaults": {},
-          "machinePools": [
-            {
-              "name": "test-nodepool",
-              "quantity": 2,
-              "workerRole": true
-            }
-          ],
-          "upgradeStrategy": {
-            "controlPlaneDrainOptions": {
-              "deleteEmptyDirData": false,
-              "disableEviction": false,
-              "enabled": false,
-              "force": false,
-              "gracePeriod": 0,
-              "ignoreDaemonSets": null,
-              "ignoreErrors": false,
-              "postDrainHooks": null,
-              "preDrainHooks": null,
-              "skipWaitForDeleteTimeoutSeconds": 0,
-              "timeout": 0
-            },
-            "workerDrainOptions": {
-              "deleteEmptyDirData": false,
-              "disableEviction": false,
-              "enabled": false,
-              "force": false,
-              "gracePeriod": 0,
-              "ignoreDaemonSets": null,
-              "ignoreErrors": false,
-              "postDrainHooks": null,
-              "preDrainHooks": null,
-              "skipWaitForDeleteTimeoutSeconds": 0,
-              "timeout": 0
-            }
-          }
-        }
-      },
-      "status": {
-        "clusterName": "c-m-abc123",
-        "observedGeneration": 0,
-        "ready": true
+			expectedResult: `[
+  {
+    "type": "update",
+    "payload": [
+      {
+        "op": "replace",
+        "path": "/spec/rkeConfig/machinePools/0/quantity",
+        "value": 2
       }
-    }
-  ],
-  "uiContext": [
-    {
-      "namespace": "fleet-default",
-      "kind": "Cluster",
-      "cluster": "test-cluster",
+    ],
+    "resource": {
       "name": "test-cluster",
-      "type": "provisioning.cattle.io.cluster"
+      "kind": "provisioningcluster",
+      "cluster": "local",
+      "namespace": "fleet-default"
     }
-  ]
-}`,
+  }
+]`,
 		},
 		{
 			name:          "subtract a single node",
@@ -414,76 +249,24 @@ func TestScaleNodePool(t *testing.T) {
 				AmountToAdd:      0,
 			},
 			expectedError: "",
-			expectedResult: `{
-  "llm": [
-    {
-      "apiVersion": "provisioning.cattle.io/v1",
-      "kind": "Cluster",
-      "metadata": {
-        "name": "test-cluster",
-        "namespace": "fleet-default"
-      },
-      "spec": {
-        "localClusterAuthEndpoint": {},
-        "rkeConfig": {
-          "chartValues": null,
-          "dataDirectories": {},
-          "machineGlobalConfig": null,
-          "machinePoolDefaults": {},
-          "machinePools": [
-            {
-              "name": "test-nodepool",
-              "quantity": 1,
-              "workerRole": true
-            }
-          ],
-          "upgradeStrategy": {
-            "controlPlaneDrainOptions": {
-              "deleteEmptyDirData": false,
-              "disableEviction": false,
-              "enabled": false,
-              "force": false,
-              "gracePeriod": 0,
-              "ignoreDaemonSets": null,
-              "ignoreErrors": false,
-              "postDrainHooks": null,
-              "preDrainHooks": null,
-              "skipWaitForDeleteTimeoutSeconds": 0,
-              "timeout": 0
-            },
-            "workerDrainOptions": {
-              "deleteEmptyDirData": false,
-              "disableEviction": false,
-              "enabled": false,
-              "force": false,
-              "gracePeriod": 0,
-              "ignoreDaemonSets": null,
-              "ignoreErrors": false,
-              "postDrainHooks": null,
-              "preDrainHooks": null,
-              "skipWaitForDeleteTimeoutSeconds": 0,
-              "timeout": 0
-            }
-          }
-        }
-      },
-      "status": {
-        "clusterName": "c-m-abc123",
-        "observedGeneration": 0,
-        "ready": true
+			expectedResult: `[
+  {
+    "type": "update",
+    "payload": [
+      {
+        "op": "replace",
+        "path": "/spec/rkeConfig/machinePools/0/quantity",
+        "value": 1
       }
-    }
-  ],
-  "uiContext": [
-    {
-      "namespace": "fleet-default",
-      "kind": "Cluster",
-      "cluster": "test-cluster",
+    ],
+    "resource": {
       "name": "test-cluster",
-      "type": "provisioning.cattle.io.cluster"
+      "kind": "provisioningcluster",
+      "cluster": "local",
+      "namespace": "fleet-default"
     }
-  ]
-}`,
+  }
+]`,
 		},
 		{
 			name:          "refuse to subtract a node if it would scale pool to zero nodes",
@@ -635,9 +418,9 @@ func TestScaleNodePool(t *testing.T) {
 			}
 			tools := Tools{client: c}
 
-			result, _, err := tools.ScaleClusterNodePool(context.Background(), &mcp.CallToolRequest{
+			result, _, err := tools.ScaleClusterNodePoolPlan(context.Background(), &mcp.CallToolRequest{
 				Params: &mcp.CallToolParamsRaw{
-					Name: "scaleClusterNodePool",
+					Name: "scaleClusterNodePoolPlan",
 				},
 				Extra: &mcp.RequestExtra{Header: map[string][]string{urlHeader: {testURL}}},
 			}, test.params)

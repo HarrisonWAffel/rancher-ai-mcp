@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/rancher/rancher-ai-mcp/internal/middleware"
 	"github.com/rancher/rancher-ai-mcp/pkg/converter"
 	"github.com/rancher/rancher-ai-mcp/pkg/response"
 	"github.com/rancher/rancher-ai-mcp/pkg/utils"
-	"strconv"
-
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -31,10 +31,6 @@ func (t *Tools) ScaleClusterNodePool(ctx context.Context, toolReq *mcp.CallToolR
 		params.Namespace = DefaultClusterResourcesNamespace
 	}
 
-	desiredSize := int32(params.DesiredSize)
-	amountToAdd := int32(params.AmountToAdd)
-	amountToSubtract := int32(params.AmountToSubtract)
-
 	log := utils.NewChildLogger(toolReq, map[string]string{
 		"cluster_id":       params.Cluster,
 		"namespace":        params.Namespace,
@@ -46,40 +42,74 @@ func (t *Tools) ScaleClusterNodePool(ctx context.Context, toolReq *mcp.CallToolR
 
 	log.Debug("Scaling cluster node pool")
 
-	_, provCluster, err := t.getProvisioningCluster(ctx, toolReq, log, params.Namespace, params.Cluster)
+	resourceInterface, err := t.client.GetResourceInterface(ctx, middleware.Token(ctx), t.rancherURL(toolReq), params.Namespace, LocalCluster, converter.K8sKindsToGVRs[converter.ProvisioningClusterResourceKind])
 	if err != nil {
-		log.Error("failed to get provisioning cluster", zap.Error(err))
 		return nil, nil, err
 	}
 
-	resourceInterface, err := t.client.GetResourceInterface(ctx, middleware.Token(ctx), toolReq.Extra.Header.Get(urlHeader), params.Namespace, LocalCluster, converter.K8sKindsToGVRs[converter.ProvisioningClusterResourceKind])
+	patchBytes, err := t.scaleClusterNodePoolPatch(ctx, toolReq, params, log)
 	if err != nil {
+		log.Error("failed to create patch for scaling node pool", zap.Error(err))
 		return nil, nil, err
+	}
+
+	log.Debug("Patching prov cluster with new node pool size", zap.String("patch", string(patchBytes)))
+
+	patchObj, err := resourceInterface.Patch(ctx, params.Cluster, types.JSONPatchType, patchBytes, metav1.PatchOptions{})
+	if err != nil {
+		log.Error("failed to patch provisioning cluster with new node pool size", zap.Error(err))
+		return nil, nil, err
+	}
+
+	log.Debug("Successfully patched provisioning cluster with new node pool size")
+
+	mcpResponse, err := response.CreateMcpResponse([]*unstructured.Unstructured{patchObj}, params.Cluster)
+	if err != nil {
+		log.Error("failed to create mcp response", zap.Error(err))
+		return nil, nil, err
+	}
+
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{&mcp.TextContent{
+			Text: mcpResponse,
+		}},
+	}, nil, nil
+}
+
+func (t *Tools) scaleClusterNodePoolPatch(ctx context.Context, toolReq *mcp.CallToolRequest, params ScaleNodePoolParameters, log *zap.Logger) ([]byte, error) {
+	desiredSize := int32(params.DesiredSize)
+	amountToAdd := int32(params.AmountToAdd)
+	amountToSubtract := int32(params.AmountToSubtract)
+
+	_, provCluster, err := t.getProvisioningCluster(ctx, toolReq, log, params.Namespace, params.Cluster)
+	if err != nil {
+		log.Error("failed to get provisioning cluster", zap.Error(err))
+		return nil, err
 	}
 
 	if provCluster.Spec.RKEConfig == nil {
 		log.Error("RKEConfig is nil, cannot scale node pool")
-		return nil, nil, fmt.Errorf("cluster %s has a nil RKEConfig, cannot scale node pool", params.Cluster)
+		return nil, fmt.Errorf("cluster %s has a nil RKEConfig, cannot scale node pool", params.Cluster)
 	}
 
 	if len(provCluster.Spec.RKEConfig.MachinePools) == 0 {
 		log.Error("no machine pools found in RKEConfig, cannot scale node pool")
-		return nil, nil, fmt.Errorf("cluster %s has no Node Pools, cannot scale", params.Cluster)
+		return nil, fmt.Errorf("cluster %s has no Node Pools, cannot scale", params.Cluster)
 	}
 
 	if desiredSize < 0 {
 		log.Error("desired size must be greater than 0")
-		return nil, nil, fmt.Errorf("desired size must be greater than or equal to 0")
+		return nil, fmt.Errorf("desired size must be greater than or equal to 0")
 	}
 
 	if desiredSize == 0 && amountToAdd == 0 && amountToSubtract == 0 {
 		log.Error("either desiredSize, amountToAdd, or amountToSubtract must be specified. A node pool cannot be scaled to 0 nodes")
-		return nil, nil, fmt.Errorf("either desiredSize, amountToAdd, or amountToSubtract must be specified. A node pool cannot be scaled to 0 nodes")
+		return nil, fmt.Errorf("either desiredSize, amountToAdd, or amountToSubtract must be specified. A node pool cannot be scaled to 0 nodes")
 	}
 
 	if amountToAdd != 0 && amountToSubtract != 0 {
 		log.Error("cannot specify both amountToAdd and amountToSubtract")
-		return nil, nil, fmt.Errorf("cannot specify both amountToAdd and amountToSubtract")
+		return nil, fmt.Errorf("cannot specify both amountToAdd and amountToSubtract")
 	}
 
 	poolIndex := -1
@@ -100,12 +130,12 @@ func (t *Tools) ScaleClusterNodePool(ctx context.Context, toolReq *mcp.CallToolR
 
 			if pool.EtcdRole && desiredSize < 3 {
 				log.Error("will not scale etcd node pool below 3 nodes to prevent loss of quorum")
-				return nil, nil, fmt.Errorf("refusing to scale etcd node pool below 3 nodes to prevent loss of quorum and potential data loss. instruct user must scale pool manually if absolutely required")
+				return nil, fmt.Errorf("refusing to scale etcd node pool below 3 nodes to prevent loss of quorum and potential data loss. instruct user must scale pool manually if absolutely required")
 			}
 
 			if desiredSize <= 0 {
 				log.Error("A node pool cannot be scaled to 0 nodes or a negative number of nodes")
-				return nil, nil, fmt.Errorf("A node pool cannot be scaled to 0 nodes or a negative number of nodes")
+				return nil, fmt.Errorf("A node pool cannot be scaled to 0 nodes or a negative number of nodes")
 			}
 
 			break
@@ -115,7 +145,7 @@ func (t *Tools) ScaleClusterNodePool(ctx context.Context, toolReq *mcp.CallToolR
 	if poolIndex == -1 {
 		err = fmt.Errorf("node pool %s not found in cluster %s", params.NodePoolName, params.Cluster)
 		log.Error(err.Error())
-		return nil, nil, err
+		return nil, err
 	}
 
 	patch := []map[string]any{
@@ -129,26 +159,8 @@ func (t *Tools) ScaleClusterNodePool(ctx context.Context, toolReq *mcp.CallToolR
 	patchBytes, err := json.Marshal(patch)
 	if err != nil {
 		log.Error("failed to marshal patch", zap.Error(err))
-		return nil, nil, fmt.Errorf("failed to marshal patch: %w", err)
+		return nil, fmt.Errorf("failed to marshal patch: %w", err)
 	}
 
-	log.Debug("Patching prov cluster with new node pool size", zap.String("patch", string(patchBytes)))
-	patchObj, err := resourceInterface.Patch(ctx, params.Cluster, types.JSONPatchType, patchBytes, metav1.PatchOptions{})
-	if err != nil {
-		log.Error("failed to patch provisioning cluster with new node pool size", zap.Error(err))
-		return nil, nil, err
-	}
-	log.Debug("Successfully patched provisioning cluster with new node pool size")
-
-	mcpResponse, err := response.CreateMcpResponse([]*unstructured.Unstructured{patchObj}, params.Cluster)
-	if err != nil {
-		log.Error("failed to create mcp response", zap.Error(err))
-		return nil, nil, err
-	}
-
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{&mcp.TextContent{
-			Text: mcpResponse,
-		}},
-	}, nil, nil
+	return patchBytes, nil
 }
