@@ -47,7 +47,7 @@ func (t *Tools) ScaleClusterNodePoolPlan(ctx context.Context, toolReq *mcp.CallT
 
 	mcpResponse, err := response.CreatePlanResponse([]response.PlanResource{updateResource})
 	if err != nil {
-		zap.L().Error("failed to create plan response", zap.String("tool", "updateKubernetesResource_plan"), zap.Error(err))
+		zap.L().Error("failed to create plan response", zap.Error(err))
 		return nil, nil, err
 	}
 

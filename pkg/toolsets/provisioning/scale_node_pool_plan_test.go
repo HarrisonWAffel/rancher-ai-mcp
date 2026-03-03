@@ -228,6 +228,47 @@ func TestScaleNodePoolPlan(t *testing.T) {
 ]`,
 		},
 		{
+			name:          "add a single node to an etcd pool with less than three initial nodes",
+			fakeClientset: newFakeClientSet(),
+			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(provisioningSchemes(), provisioningCustomListKinds(),
+				newProvisioningClusterWithRKEConfig("test-cluster", "fleet-default", "c-m-abc123", []provisioningV1.RKEMachinePool{
+					{
+						EtcdRole:         true,
+						ControlPlaneRole: true,
+						WorkerRole:       true,
+						Name:             "test-nodepool",
+						Quantity:         toPtr[int32](int32(1)),
+					},
+				})),
+			params: ScaleNodePoolParameters{
+				Cluster:          "test-cluster",
+				Namespace:        "fleet-default",
+				NodePoolName:     "test-nodepool",
+				DesiredSize:      0,
+				AmountToSubtract: 0,
+				AmountToAdd:      1,
+			},
+			expectedError: "",
+			expectedResult: `[
+  {
+    "type": "update",
+    "payload": [
+      {
+        "op": "replace",
+        "path": "/spec/rkeConfig/machinePools/0/quantity",
+        "value": 2
+      }
+    ],
+    "resource": {
+      "name": "test-cluster",
+      "kind": "provisioningcluster",
+      "cluster": "local",
+      "namespace": "fleet-default"
+    }
+  }
+]`,
+		},
+		{
 			name:          "subtract a single node",
 			fakeClientset: newFakeClientSet(),
 			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(provisioningSchemes(), provisioningCustomListKinds(),

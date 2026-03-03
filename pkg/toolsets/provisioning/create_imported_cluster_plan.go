@@ -28,7 +28,7 @@ func (t *Tools) CreateImportedClusterPlan(_ context.Context, toolReq *mcp.CallTo
 	createResource := response.NewCreateResourceInput(unstructuredObj, LocalCluster)
 	mcpResponse, err := response.CreatePlanResponse([]response.PlanResource{createResource})
 	if err != nil {
-		zap.L().Error("failed to create plan response", zap.String("tool", "createKubernetesResource_plan"), zap.Error(err))
+		zap.L().Error("failed to create plan response", zap.Error(err))
 		return nil, nil, err
 	}
 

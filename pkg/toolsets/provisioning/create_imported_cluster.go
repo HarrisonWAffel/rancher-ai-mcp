@@ -18,7 +18,7 @@ import (
 
 type CreateImportedClusterParams struct {
 	ClusterName              string `json:"clusterName" jsonschema:"The name of the cluster to create"`
-	ClusterDescription       string `json:"clusterDescription" jsonschema:"Optional description for the cluster"`
+	ClusterDescription       string `json:"clusterDescription" jsonschema:"Description for the cluster"`
 	VersionManagementSetting string `json:"VersionManagementSetting" jsonschema:"Enable version management for the cluster. If not specified the global setting will be used. Potential values are 'system-default', 'true', and 'false'."`
 }
 

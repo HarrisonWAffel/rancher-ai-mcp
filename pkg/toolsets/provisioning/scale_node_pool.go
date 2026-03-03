@@ -119,6 +119,7 @@ func (t *Tools) scaleClusterNodePoolPatch(ctx context.Context, toolReq *mcp.Call
 		if params.NodePoolName == pool.Name || params.NodePoolName == provCluster.Name+"-"+pool.Name {
 			log.Debug("node pool found in cluster RKEConfig, updating desired size", zap.Int32("current_size", *pool.Quantity))
 			poolIndex = i
+			oldQuantity := *pool.Quantity
 
 			if amountToAdd != 0 {
 				desiredSize = *pool.Quantity + amountToAdd
@@ -128,7 +129,7 @@ func (t *Tools) scaleClusterNodePoolPatch(ctx context.Context, toolReq *mcp.Call
 				desiredSize = *pool.Quantity - amountToSubtract
 			}
 
-			if pool.EtcdRole && desiredSize < 3 {
+			if pool.EtcdRole && desiredSize < 3 && desiredSize < oldQuantity {
 				log.Error("will not scale etcd node pool below 3 nodes to prevent loss of quorum")
 				return nil, fmt.Errorf("refusing to scale etcd node pool below 3 nodes to prevent loss of quorum and potential data loss. instruct user must scale pool manually if absolutely required")
 			}
