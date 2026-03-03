@@ -21,11 +21,11 @@ import (
 )
 
 type CreateCustomClusterParams struct {
-	ClusterName        string `json:"clusterName" jsonschema:"the name of the provisioning cluster"`
-	ClusterDescription string `json:"clusterDescription" jsonschema:"the description of the provisioning cluster"`
-	CNI                string `json:"CNI" jsonschema:"the name of the CNI (Container Networking Interface) to use"`
-	KubernetesVersion  string `json:"kubernetesVersion" jsonschema:"the Kubernetes version of the cluster"`
-	Distribution       string `json:"distribution" jsonschema:"the distribution of the provisioning cluster (rke2 or k3s)"`
+	ClusterName        string `json:"clusterName" jsonschema:"The name of the provisioning cluster"`
+	ClusterDescription string `json:"clusterDescription" jsonschema:"Description of the provisioning cluster"`
+	CNI                string `json:"CNI" jsonschema:"The name of the CNI (Container Networking Interface) to use"`
+	KubernetesVersion  string `json:"kubernetesVersion" jsonschema:"The Kubernetes version of the cluster"`
+	Distribution       string `json:"distribution" jsonschema:"The distribution of the provisioning cluster (rke2 or k3s)"`
 }
 
 func (t *Tools) CreateCustomCluster(ctx context.Context, toolReq *mcp.CallToolRequest, params CreateCustomClusterParams) (*mcp.CallToolResult, any, error) {
@@ -39,31 +39,60 @@ func (t *Tools) CreateCustomCluster(ctx context.Context, toolReq *mcp.CallToolRe
 
 	log.Debug("creating a custom cluster")
 
+	unstructuredObj, err := t.CreateCustomClusterObj(toolReq, params, log)
+	if err != nil {
+		log.Error("failed to create custom cluster object", zap.Error(err))
+		return nil, nil, fmt.Errorf("failed to create custom cluster object: %w", err)
+	}
+
+	resourceInterface, err := t.client.GetResourceInterface(ctx, middleware.Token(ctx), t.rancherURL(toolReq), DefaultClusterResourcesNamespace, LocalCluster, converter.K8sKindsToGVRs[converter.ProvisioningClusterResourceKind])
+	if err != nil {
+		return nil, nil, fmt.Errorf("error getting resource interface: %w", err)
+	}
+
+	createdCluster, err := resourceInterface.Create(ctx, unstructuredObj, metav1.CreateOptions{})
+	if err != nil {
+		log.Error("failed to create resource", zap.Error(err))
+		return nil, nil, fmt.Errorf("failed to create resource %s: %w", params.ClusterName, err)
+	}
+
+	mcpResponse, err := response.CreateMcpResponse([]*unstructured.Unstructured{createdCluster}, LocalCluster)
+	if err != nil {
+		log.Error(fmt.Sprintf("failed to create mcp response: %v", err))
+		return nil, nil, err
+	}
+
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{&mcp.TextContent{Text: mcpResponse}},
+	}, nil, nil
+}
+
+func (t *Tools) CreateCustomClusterObj(toolReq *mcp.CallToolRequest, params CreateCustomClusterParams, log *zap.Logger) (*unstructured.Unstructured, error) {
 	if params.ClusterName == "" {
 		log.Debug("cluster name is required")
-		return nil, nil, fmt.Errorf("ClusterName is required")
+		return nil, fmt.Errorf("ClusterName is required")
 	}
 
 	if params.Distribution != "rke2" && params.Distribution != "k3s" {
 		log.Debug("invalid distribution")
-		return nil, nil, fmt.Errorf("invalid value for Distribution: %s. Valid values are 'rke2' and 'k3s'", params.Distribution)
+		return nil, fmt.Errorf("invalid value for Distribution: %s. Valid values are 'rke2' and 'k3s'", params.Distribution)
 	}
 
 	allCNIs, cniSupported := supportedCNI(params.CNI)
 	if !cniSupported {
 		log.Debug("invalid CNI")
-		return nil, nil, fmt.Errorf("unsupported CNI \"%s\". Valid values are \"%v\"", params.CNI, strings.Join(allCNIs, "\", \""))
+		return nil, fmt.Errorf("unsupported CNI \"%s\". Valid values are \"%v\"", params.CNI, strings.Join(allCNIs, "\", \""))
 	}
 
-	fullVersion, allSupportedVersions, supported, err := supportedKubernetesVersion(toolReq.Extra.Header.Get(urlHeader), params.Distribution, params.KubernetesVersion, log)
+	fullVersion, allSupportedVersions, supported, err := supportedKubernetesVersion(t.rancherURL(toolReq), params.Distribution, params.KubernetesVersion, log)
 	if err != nil {
 		log.Error("error getting supported Kubernetes version", zap.Error(err))
-		return nil, nil, fmt.Errorf("error checking supported Kubernetes versions: %w", err)
+		return nil, fmt.Errorf("error checking supported Kubernetes versions: %w", err)
 	}
 
 	if !supported {
 		log.Error("unsupported distribution")
-		return nil, nil, fmt.Errorf("unsupported Kubernetes version: %s for distribution: %s. Only support versions %v", params.KubernetesVersion, params.Distribution, allSupportedVersions)
+		return nil, fmt.Errorf("unsupported Kubernetes version: %s for distribution: %s. Only support versions %v", params.KubernetesVersion, params.Distribution, allSupportedVersions)
 	}
 
 	custom := provisioningV1.Cluster{
@@ -115,33 +144,14 @@ func (t *Tools) CreateCustomCluster(ctx context.Context, toolReq *mcp.CallToolRe
 	objBytes, err := json.Marshal(custom)
 	if err != nil {
 		log.Error("failed to marshal resource", zap.Error(err))
-		return nil, nil, fmt.Errorf("failed to marshal resource: %w", err)
+		return nil, fmt.Errorf("failed to marshal resource: %w", err)
 	}
 
 	unstructuredObj := &unstructured.Unstructured{}
 	if err := json.Unmarshal(objBytes, unstructuredObj); err != nil {
 		log.Error("failed to create unstructured resource", zap.Error(err))
-		return nil, nil, fmt.Errorf("failed to create unstructured object: %w", err)
+		return nil, fmt.Errorf("failed to create unstructured object: %w", err)
 	}
 
-	resourceInterface, err := t.client.GetResourceInterface(ctx, middleware.Token(ctx), toolReq.Extra.Header.Get(urlHeader), DefaultClusterResourcesNamespace, LocalCluster, converter.K8sKindsToGVRs[converter.ProvisioningClusterResourceKind])
-	if err != nil {
-		return nil, nil, fmt.Errorf("error getting resource interface: %w", err)
-	}
-
-	createdCluster, err := resourceInterface.Create(ctx, unstructuredObj, metav1.CreateOptions{})
-	if err != nil {
-		log.Error("failed to create resource", zap.Error(err))
-		return nil, nil, fmt.Errorf("failed to create resource %s: %w", params.ClusterName, err)
-	}
-
-	mcpResponse, err := response.CreateMcpResponse([]*unstructured.Unstructured{createdCluster}, LocalCluster)
-	if err != nil {
-		log.Error(fmt.Sprintf("failed to create mcp response: %v", err))
-		return nil, nil, err
-	}
-
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{&mcp.TextContent{Text: mcpResponse}},
-	}, nil, nil
+	return unstructuredObj, nil
 }

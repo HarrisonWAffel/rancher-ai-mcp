@@ -17,7 +17,7 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-func TestCreateCustomCluster(t *testing.T) {
+func TestCreateCustomClusterPlan(t *testing.T) {
 	tests := []struct {
 		name            string
 		fakeClientset   kubernetes.Interface
@@ -176,9 +176,9 @@ func TestCreateCustomCluster(t *testing.T) {
 				}
 			}))
 
-			result, _, err := tools.CreateCustomCluster(context.Background(), &mcp.CallToolRequest{
+			result, _, err := tools.CreateCustomClusterPlan(context.Background(), &mcp.CallToolRequest{
 				Params: &mcp.CallToolParamsRaw{
-					Name: "createCustomCluster",
+					Name: "createCustomClusterPlan",
 				},
 				Extra: &mcp.RequestExtra{Header: map[string][]string{urlHeader: {svr.URL}}},
 			}, test.params)
@@ -192,7 +192,7 @@ func TestCreateCustomCluster(t *testing.T) {
 				assert.Truef(t, ok, "expected type *mcp.TextContent")
 
 				assert.Truef(t, ok, "expected expectedResult to be a JSON string")
-				assert.JSONEq(t, createCustomClusterOutput(test.params, test.finalK8sVersion), text.Text)
+				assert.JSONEq(t, createCustomClusterPlanOutput(test.params, test.finalK8sVersion), text.Text)
 			}
 
 			svr.Close()
@@ -200,74 +200,76 @@ func TestCreateCustomCluster(t *testing.T) {
 	}
 }
 
-func createCustomClusterOutput(params CreateCustomClusterParams, finalK8sVersion string) string {
-	return fmt.Sprintf(`{
-  "llm" : [ {
-    "apiVersion" : "provisioning.cattle.io/v1",
-    "kind" : "Cluster",
-    "metadata" : {
-      "annotations" : {
-        "field.cattle.io/description" : "%s"
+func createCustomClusterPlanOutput(params CreateCustomClusterParams, finalK8sVersion string) string {
+	return fmt.Sprintf(`[
+  {
+    "type": "create",
+    "payload": {
+      "apiVersion": "provisioning.cattle.io/v1",
+      "kind": "Cluster",
+      "metadata": {
+        "annotations": {
+          "field.cattle.io/description": "%s"
+        },
+        "name": "%s",
+        "namespace": "fleet-default"
       },
-      "name" : "%s",
-      "namespace" : "fleet-default"
-    },
-    "spec" : {
-      "kubernetesVersion" : "%s",
-      "localClusterAuthEndpoint" : { },
-      "rkeConfig" : {
-        "chartValues" : null,
-        "dataDirectories" : { },
-        "etcd" : {
-          "snapshotRetention" : 5,
-          "snapshotScheduleCron" : "0 */5 * * *"
-        },
-        "machineGlobalConfig" : {
-          "cni" : "%s"
-        },
-        "machinePoolDefaults" : { },
-        "upgradeStrategy" : {
-          "controlPlaneConcurrency" : "1",
-          "controlPlaneDrainOptions" : {
-            "deleteEmptyDirData" : true,
-            "disableEviction" : false,
-            "enabled" : false,
-            "force" : false,
-            "gracePeriod" : -1,
-            "ignoreDaemonSets" : true,
-            "ignoreErrors" : false,
-            "postDrainHooks" : null,
-            "preDrainHooks" : null,
-            "skipWaitForDeleteTimeoutSeconds" : 0,
-            "timeout" : 120
+      "spec": {
+        "kubernetesVersion": "%s",
+        "localClusterAuthEndpoint": {},
+        "rkeConfig": {
+          "chartValues": null,
+          "dataDirectories": {},
+          "etcd": {
+            "snapshotRetention": 5,
+            "snapshotScheduleCron": "0 */5 * * *"
           },
-          "workerConcurrency" : "1",
-          "workerDrainOptions" : {
-            "deleteEmptyDirData" : true,
-            "disableEviction" : false,
-            "enabled" : false,
-            "force" : false,
-            "gracePeriod" : -1,
-            "ignoreDaemonSets" : true,
-            "ignoreErrors" : false,
-            "postDrainHooks" : null,
-            "preDrainHooks" : null,
-            "skipWaitForDeleteTimeoutSeconds" : 0,
-            "timeout" : 120
+          "machineGlobalConfig": {
+            "cni": "%s"
+          },
+          "machinePoolDefaults": {},
+          "upgradeStrategy": {
+            "controlPlaneConcurrency": "1",
+            "controlPlaneDrainOptions": {
+              "deleteEmptyDirData": true,
+              "disableEviction": false,
+              "enabled": false,
+              "force": false,
+              "gracePeriod": -1,
+              "ignoreDaemonSets": true,
+              "ignoreErrors": false,
+              "postDrainHooks": null,
+              "preDrainHooks": null,
+              "skipWaitForDeleteTimeoutSeconds": 0,
+              "timeout": 120
+            },
+            "workerConcurrency": "1",
+            "workerDrainOptions": {
+              "deleteEmptyDirData": true,
+              "disableEviction": false,
+              "enabled": false,
+              "force": false,
+              "gracePeriod": -1,
+              "ignoreDaemonSets": true,
+              "ignoreErrors": false,
+              "postDrainHooks": null,
+              "preDrainHooks": null,
+              "skipWaitForDeleteTimeoutSeconds": 0,
+              "timeout": 120
+            }
           }
         }
+      },
+      "status": {
+        "observedGeneration": 0
       }
     },
-    "status" : {
-      "observedGeneration" : 0
+    "resource": {
+      "name": "%s",
+      "kind": "Cluster",
+      "cluster": "local",
+      "namespace": "fleet-default"
     }
-  } ],
-  "uiContext" : [ {
-    "namespace" : "fleet-default",
-    "kind" : "Cluster",
-    "cluster" : "local",
-    "name" : "%s",
-    "type" : "provisioning.cattle.io.cluster"
-  } ]
-}`, params.ClusterDescription, params.ClusterName, finalK8sVersion, params.CNI, params.ClusterName)
+  }
+]`, params.ClusterDescription, params.ClusterName, finalK8sVersion, params.CNI, params.ClusterName)
 }
