@@ -9,7 +9,6 @@ import (
 	"github.com/rancher/rancher-ai-mcp/pkg/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes"
@@ -30,33 +29,31 @@ func TestCreateImportedClusterPlan(t *testing.T) {
 			fakeClientset: newFakeClientSet(),
 			fakeDynClient: dynamicfake.NewSimpleDynamicClient(provisioningSchemes()),
 			params: createImportedClusterParams{
-				ClusterName:              "test-cluster",
-				ClusterDescription:       "A test cluster",
+				Name:                     "test-cluster",
+				Description:              "A test cluster",
 				VersionManagementSetting: "true",
 			},
 			expectedError: "",
 			expectedResult: `{
   "payload": {
     "apiVersion": "management.cattle.io/v3",
+    "description": "A test cluster",
     "kind": "Cluster",
     "metadata": {
       "annotations": {
-        "generate-name": "c-",
         "rancher.io/imported-cluster-version-management": "true"
       },
-      "name": ""
+      "name": "test-cluster",
+      "namespace": "fleet-default"
     },
-    "spec": {
-      "description": "A test cluster",
-      "displayName": "test-cluster",
-      "imported": true
-    }
+    "name": "test-cluster",
+    "type": "cluster"
   },
   "resource": {
     "cluster": "local",
     "kind": "Cluster",
-    "name": "",
-    "namespace": ""
+    "name": "test-cluster",
+    "namespace": "fleet-default"
   },
   "type": "create"
 }`,
@@ -66,33 +63,31 @@ func TestCreateImportedClusterPlan(t *testing.T) {
 			fakeClientset: newFakeClientSet(),
 			fakeDynClient: dynamicfake.NewSimpleDynamicClient(provisioningSchemes()),
 			params: createImportedClusterParams{
-				ClusterName:              "test-cluster",
-				ClusterDescription:       "A test cluster",
+				Name:                     "test-cluster",
+				Description:              "A test cluster",
 				VersionManagementSetting: "false",
 			},
 			expectedError: "",
 			expectedResult: `{
   "payload": {
     "apiVersion": "management.cattle.io/v3",
+    "description": "A test cluster",
     "kind": "Cluster",
     "metadata": {
       "annotations": {
-        "generate-name": "c-",
         "rancher.io/imported-cluster-version-management": "false"
       },
-      "name": ""
+      "name": "test-cluster",
+      "namespace": "fleet-default"
     },
-    "spec": {
-      "description": "A test cluster",
-      "displayName": "test-cluster",
-      "imported": true
-    }
+    "name": "test-cluster",
+    "type": "cluster"
   },
   "resource": {
     "cluster": "local",
     "kind": "Cluster",
-    "name": "",
-    "namespace": ""
+    "name": "test-cluster",
+    "namespace": "fleet-default"
   },
   "type": "create"
 }`,
@@ -102,33 +97,31 @@ func TestCreateImportedClusterPlan(t *testing.T) {
 			fakeClientset: newFakeClientSet(),
 			fakeDynClient: dynamicfake.NewSimpleDynamicClient(provisioningSchemes()),
 			params: createImportedClusterParams{
-				ClusterName:              "test-cluster",
-				ClusterDescription:       "A test cluster",
+				Name:                     "test-cluster",
+				Description:              "A test cluster",
 				VersionManagementSetting: "",
 			},
 			expectedError: "",
 			expectedResult: `{
   "payload": {
     "apiVersion": "management.cattle.io/v3",
+    "description": "A test cluster",
     "kind": "Cluster",
     "metadata": {
       "annotations": {
-        "generate-name": "c-",
         "rancher.io/imported-cluster-version-management": "system-default"
       },
-      "name": ""
+      "name": "test-cluster",
+      "namespace": "fleet-default"
     },
-    "spec": {
-      "description": "A test cluster",
-      "displayName": "test-cluster",
-      "imported": true
-    }
+    "name": "test-cluster",
+    "type": "cluster"
   },
   "resource": {
     "cluster": "local",
     "kind": "Cluster",
-    "name": "",
-    "namespace": ""
+    "name": "test-cluster",
+    "namespace": "fleet-default"
   },
   "type": "create"
 }`,
@@ -138,33 +131,31 @@ func TestCreateImportedClusterPlan(t *testing.T) {
 			fakeClientset: newFakeClientSet(),
 			fakeDynClient: dynamicfake.NewSimpleDynamicClient(provisioningSchemes()),
 			params: createImportedClusterParams{
-				ClusterName:              "test-cluster",
-				ClusterDescription:       "",
+				Name:                     "test-cluster",
+				Description:              "",
 				VersionManagementSetting: "",
 			},
 			expectedError: "",
 			expectedResult: `{
   "payload": {
     "apiVersion": "management.cattle.io/v3",
+    "description": "",
     "kind": "Cluster",
     "metadata": {
       "annotations": {
-        "generate-name": "c-",
         "rancher.io/imported-cluster-version-management": "system-default"
       },
-      "name": ""
+      "name": "test-cluster",
+      "namespace": "fleet-default"
     },
-    "spec": {
-      "description": "",
-      "displayName": "test-cluster",
-      "imported": true
-    }
+    "name": "test-cluster",
+    "type": "cluster"
   },
   "resource": {
     "cluster": "local",
     "kind": "Cluster",
-    "name": "",
-    "namespace": ""
+    "name": "test-cluster",
+    "namespace": "fleet-default"
   },
   "type": "create"
 }`,
@@ -174,11 +165,11 @@ func TestCreateImportedClusterPlan(t *testing.T) {
 			fakeClientset: newFakeClientSet(),
 			fakeDynClient: dynamicfake.NewSimpleDynamicClient(provisioningSchemes()),
 			params: createImportedClusterParams{
-				ClusterName:              "",
-				ClusterDescription:       "whats my name again",
+				Name:                     "",
+				Description:              "whats my name again",
 				VersionManagementSetting: "",
 			},
-			expectedError:  "ClusterName is required",
+			expectedError:  "name is required",
 			expectedResult: "",
 		},
 	}
@@ -215,43 +206,11 @@ func TestCreateImportedClusterPlan(t *testing.T) {
 				err = json.Unmarshal([]byte(text.Text), &obj)
 				require.NoError(t, err)
 
-				strippedResultBytes, err := json.Marshal(checkAndStripClusterNameOnPlan(t, obj[0]))
+				resultBytes, err := json.Marshal(obj[0])
 				assert.NoError(t, err)
 
-				t.Log(string(strippedResultBytes))
-
-				assert.JSONEq(t, test.expectedResult, string(strippedResultBytes), "expected result does not match actual result")
+				assert.JSONEq(t, test.expectedResult, string(resultBytes), "expected result does not match actual result")
 			}
 		})
 	}
-}
-
-func checkAndStripClusterNameOnPlan(t *testing.T, obj map[string]interface{}) map[string]interface{} {
-	resource, found, err := unstructured.NestedMap(obj, "resource")
-	assert.NoError(t, err)
-	assert.True(t, found, "resource field not found in object")
-
-	name, found, err := unstructured.NestedString(resource, "name")
-	assert.NoError(t, err)
-	assert.True(t, found)
-	assert.Regexp(t, nameRegex, name, "expected name to match the pattern 'c-' followed by 5 random alphanumeric characters")
-	err = unstructured.SetNestedField(resource, "", "name")
-	assert.NoError(t, err)
-
-	obj["resource"] = resource
-
-	payload, found, err := unstructured.NestedMap(obj, "payload")
-	assert.NoError(t, err)
-	assert.True(t, found, "payload field not found in object")
-
-	name, found, err = unstructured.NestedString(payload, "metadata", "name")
-	assert.NoError(t, err)
-	assert.True(t, found)
-	assert.Regexp(t, nameRegex, name, "expected name to match the pattern 'c-' followed by 5 random alphanumeric characters")
-	err = unstructured.SetNestedField(payload, "", "metadata", "name")
-	assert.NoError(t, err)
-
-	obj["payload"] = payload
-
-	return obj
 }

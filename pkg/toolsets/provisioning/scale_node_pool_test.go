@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/rancher/rancher-ai-mcp/pkg/client"
+	"k8s.io/utils/ptr"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	provisioningV1 "github.com/rancher/rancher/pkg/apis/provisioning.cattle.io/v1"
@@ -34,7 +35,7 @@ func TestScaleNodePool(t *testing.T) {
 						ControlPlaneRole: true,
 						WorkerRole:       true,
 						Name:             "test-nodepool",
-						Quantity:         toPtr[int32](int32(1)),
+						Quantity:         ptr.To[int32](1),
 					},
 				})),
 			params: scaleNodePoolParameters{
@@ -127,14 +128,14 @@ func TestScaleNodePool(t *testing.T) {
 						ControlPlaneRole: true,
 						WorkerRole:       true,
 						Name:             "test-nodepool",
-						Quantity:         toPtr[int32](int32(5)),
+						Quantity:         ptr.To[int32](5),
 					},
 					{
 						EtcdRole:         false,
 						ControlPlaneRole: false,
 						WorkerRole:       true,
 						Name:             "test-nodepool",
-						Quantity:         toPtr[int32](int32(1)),
+						Quantity:         ptr.To[int32](1),
 					},
 				})),
 			params: scaleNodePoolParameters{
@@ -143,7 +144,7 @@ func TestScaleNodePool(t *testing.T) {
 				NodePoolName: "test-nodepool",
 				DesiredSize:  1,
 			},
-			expectedError:  "refusing to scale etcd node pool below 3 nodes to prevent loss of quorum and potential data loss. instruct user must scale pool manually if absolutely required",
+			expectedError:  "scaling an etcd node pool to less than 3 nodes can result in a loss of quorum and potential data loss",
 			expectedResult: "",
 		},
 		{
@@ -156,14 +157,14 @@ func TestScaleNodePool(t *testing.T) {
 						ControlPlaneRole: true,
 						WorkerRole:       true,
 						Name:             "test-nodepool-etcd",
-						Quantity:         toPtr[int32](int32(3)),
+						Quantity:         ptr.To[int32](3),
 					},
 					{
 						EtcdRole:         false,
 						ControlPlaneRole: false,
 						WorkerRole:       true,
 						Name:             "test-nodepool",
-						Quantity:         toPtr[int32](int32(5)),
+						Quantity:         ptr.To[int32](5),
 					},
 				})),
 			params: scaleNodePoolParameters{
@@ -261,7 +262,7 @@ func TestScaleNodePool(t *testing.T) {
 						ControlPlaneRole: true,
 						WorkerRole:       true,
 						Name:             "test-nodepool",
-						Quantity:         toPtr[int32](int32(1)),
+						Quantity:         ptr.To[int32](1),
 					},
 				})),
 			params: scaleNodePoolParameters{
@@ -285,7 +286,7 @@ func TestScaleNodePool(t *testing.T) {
 						ControlPlaneRole: true,
 						WorkerRole:       true,
 						Name:             "test-nodepool",
-						Quantity:         toPtr[int32](int32(1)),
+						Quantity:         ptr.To[int32](1),
 					},
 				})),
 			params: scaleNodePoolParameters{
@@ -309,7 +310,7 @@ func TestScaleNodePool(t *testing.T) {
 						ControlPlaneRole: false,
 						WorkerRole:       true,
 						Name:             "test-nodepool",
-						Quantity:         toPtr[int32](int32(1)),
+						Quantity:         ptr.To[int32](1),
 					},
 				})),
 			params: scaleNodePoolParameters{
@@ -402,7 +403,7 @@ func TestScaleNodePool(t *testing.T) {
 						ControlPlaneRole: false,
 						WorkerRole:       true,
 						Name:             "test-nodepool",
-						Quantity:         toPtr[int32](int32(2)),
+						Quantity:         ptr.To[int32](2),
 					},
 				})),
 			params: scaleNodePoolParameters{
@@ -495,7 +496,7 @@ func TestScaleNodePool(t *testing.T) {
 						ControlPlaneRole: false,
 						WorkerRole:       true,
 						Name:             "test-nodepool",
-						Quantity:         toPtr[int32](int32(1)),
+						Quantity:         ptr.To[int32](1),
 					},
 				})),
 			params: scaleNodePoolParameters{
@@ -519,7 +520,7 @@ func TestScaleNodePool(t *testing.T) {
 						ControlPlaneRole: false,
 						WorkerRole:       true,
 						Name:             "test-nodepool",
-						Quantity:         toPtr[int32](int32(1)),
+						Quantity:         ptr.To[int32](1),
 					},
 				})),
 			params: scaleNodePoolParameters{
@@ -543,7 +544,7 @@ func TestScaleNodePool(t *testing.T) {
 						ControlPlaneRole: false,
 						WorkerRole:       true,
 						Name:             "test-nodepool",
-						Quantity:         toPtr[int32](int32(3)),
+						Quantity:         ptr.To[int32](3),
 					},
 				})),
 			params: scaleNodePoolParameters{
@@ -554,7 +555,7 @@ func TestScaleNodePool(t *testing.T) {
 				AmountToSubtract: 2,
 				AmountToAdd:      0,
 			},
-			expectedError:  "refusing to scale etcd node pool below 3 nodes to prevent loss of quorum and potential data loss. instruct user must scale pool manually if absolutely required",
+			expectedError:  "scaling an etcd node pool to less than 3 nodes can result in a loss of quorum and potential data loss",
 			expectedResult: "",
 		},
 		{
@@ -567,7 +568,7 @@ func TestScaleNodePool(t *testing.T) {
 						ControlPlaneRole: false,
 						WorkerRole:       true,
 						Name:             "test-nodepool",
-						Quantity:         toPtr[int32](int32(3)),
+						Quantity:         ptr.To[int32](3),
 					},
 				})),
 			params: scaleNodePoolParameters{
@@ -607,7 +608,7 @@ func TestScaleNodePool(t *testing.T) {
 						ControlPlaneRole: false,
 						WorkerRole:       true,
 						Name:             "test-nodepool",
-						Quantity:         toPtr[int32](int32(3)),
+						Quantity:         ptr.To[int32](3),
 					},
 				})),
 			params: scaleNodePoolParameters{

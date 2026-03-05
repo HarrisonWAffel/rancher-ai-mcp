@@ -1,6 +1,7 @@
 package provisioning
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -522,4 +523,29 @@ func supportedCNI(cni string) ([]string, bool) {
 		return supportedCNIS, false
 	}
 	return supportedCNIS, true
+}
+
+func makeRancherRequest(ctx context.Context, rancherURL, method, path, token string, requestBody []byte) ([]byte, int, error) {
+	req, err := http.NewRequestWithContext(ctx, method, fmt.Sprintf("%s/%s", rancherURL, strings.TrimPrefix(path, "/")), bytes.NewReader(requestBody))
+	if err != nil {
+		return nil, 0, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		if err != io.EOF {
+			return nil, resp.StatusCode, fmt.Errorf("failed to read response body from Rancher API after cluster creation: %w", err)
+		}
+	}
+
+	return body, resp.StatusCode, nil
 }

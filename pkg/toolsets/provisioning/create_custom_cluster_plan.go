@@ -11,11 +11,11 @@ import (
 
 func (t *Tools) createCustomClusterPlan(_ context.Context, toolReq *mcp.CallToolRequest, params createCustomClusterParams) (*mcp.CallToolResult, any, error) {
 	log := utils.NewChildLogger(toolReq, map[string]string{
-		"clusterName":        params.ClusterName,
-		"clusterDescription": params.ClusterDescription,
-		"CNI":                params.CNI,
-		"KubernetesVersion":  params.KubernetesVersion,
-		"Distribution":       params.Distribution,
+		"Name":         params.Name,
+		"Description":  params.Description,
+		"CNI":          params.CNI,
+		"Version":      params.Version,
+		"Distribution": params.Distribution,
 	})
 
 	log.Debug("Planning custom cluster creation")

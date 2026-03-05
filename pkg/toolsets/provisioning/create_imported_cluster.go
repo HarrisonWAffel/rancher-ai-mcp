@@ -2,30 +2,29 @@ package provisioning
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/rancher/rancher-ai-mcp/internal/middleware"
-	"github.com/rancher/rancher-ai-mcp/pkg/converter"
 	"github.com/rancher/rancher-ai-mcp/pkg/response"
 	"github.com/rancher/rancher-ai-mcp/pkg/utils"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.uber.org/zap"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	utilrand "k8s.io/apimachinery/pkg/util/rand"
 )
 
 type createImportedClusterParams struct {
-	ClusterName              string `json:"clusterName" jsonschema:"The name of the cluster to create"`
-	ClusterDescription       string `json:"clusterDescription,omitempty" jsonschema:"Description for the cluster"`
+	Name                     string `json:"name" jsonschema:"The name of the cluster to create"`
+	Description              string `json:"description,omitempty" jsonschema:"Description for the cluster"`
 	VersionManagementSetting string `json:"VersionManagementSetting,omitempty" jsonschema:"Enable version management for the cluster. If not specified the global setting will be used. Potential values are 'system-default', 'true', and 'false'."`
 }
 
 func (t *Tools) createImportedCluster(ctx context.Context, toolReq *mcp.CallToolRequest, params createImportedClusterParams) (*mcp.CallToolResult, any, error) {
 	log := utils.NewChildLogger(toolReq, map[string]string{
-		"clusterName":              params.ClusterName,
-		"clusterDescription":       params.ClusterDescription,
+		"Name":                     params.Name,
+		"Description":              params.Description,
 		"versionManagementSetting": params.VersionManagementSetting,
 	})
 
@@ -37,21 +36,32 @@ func (t *Tools) createImportedCluster(ctx context.Context, toolReq *mcp.CallTool
 		return nil, nil, fmt.Errorf("failed to create imported cluster object: %w", err)
 	}
 
-	// Create the cluster
-	resourceInterface, err := t.client.GetResourceInterface(ctx, middleware.Token(ctx), t.rancherURL(toolReq), "", LocalCluster, converter.K8sKindsToGVRs[converter.ManagementClusterResourceKind])
+	clusterJSON, err := cluster.MarshalJSON()
 	if err != nil {
-		return nil, nil, err
+		log.Error("failed to marshal cluster object to JSON", zap.Error(err))
+		return nil, nil, fmt.Errorf("failed to marshal cluster object to JSON: %w", err)
 	}
 
-	createdCluster, err := resourceInterface.Create(ctx, cluster, metav1.CreateOptions{})
+	respBody, status, err := makeRancherRequest(ctx, t.rancherURL(toolReq), http.MethodPost, "v3/clusters", middleware.Token(ctx), clusterJSON)
 	if err != nil {
-		log.Error("failed to create imported cluster", zap.Error(err))
-		return nil, nil, fmt.Errorf("failed to create imported cluster %s: %w", params.ClusterName, err)
+		log.Error("failed to make request to Rancher API to create imported cluster", zap.Error(err))
+		return nil, nil, fmt.Errorf("failed to make request to Rancher API to create imported cluster: %w", err)
+	}
+
+	if status != http.StatusCreated {
+		log.Error("received non-success status code from Rancher API when creating imported cluster", zap.Int("statusCode", status), zap.ByteString("responseBody", respBody))
+		return nil, nil, fmt.Errorf("received non-success status code %d from Rancher API when creating imported cluster: %s", status, string(respBody))
+	}
+
+	obj := make(map[string]any)
+	err = json.Unmarshal(respBody, &obj)
+	if err != nil {
+		log.Error("failed to unmarshal response body from Rancher API after cluster creation", zap.Error(err))
+		return nil, nil, fmt.Errorf("failed to unmarshal response body from Rancher API after cluster creation: %w", err)
 	}
 
 	log.Debug("Successfully created imported cluster")
-
-	mcpResponse, err := response.CreateMcpResponse([]*unstructured.Unstructured{createdCluster}, LocalCluster)
+	mcpResponse, err := response.CreateMcpResponse([]*unstructured.Unstructured{{Object: obj}}, LocalCluster)
 	if err != nil {
 		log.Error("failed to create mcp response", zap.Error(err))
 		return nil, nil, err
@@ -71,33 +81,27 @@ func (t *Tools) createImportedClusterObj(params createImportedClusterParams) (*u
 		params.VersionManagementSetting = "system-default"
 	}
 
-	if params.ClusterName == "" {
-		return nil, fmt.Errorf("ClusterName is required")
+	if params.Name == "" {
+		return nil, fmt.Errorf("name is required")
 	}
 
 	cluster := &unstructured.Unstructured{
 		Object: make(map[string]interface{}),
 	}
-	cluster.SetKind("Cluster")
-	cluster.SetAPIVersion(converter.ManagementGroup + "/v3")
-	// This mimics behavior built within the Norman API, which is typically how
-	// custom clusters are created. The format of 'c-xxxxx' is important, as Rancher
-	// uses it to determine the cluster type.
-	cluster.SetName(fmt.Sprintf("c-%s", utilrand.String(5)))
+
 	cluster.SetAnnotations(map[string]string{
 		"rancher.io/imported-cluster-version-management": params.VersionManagementSetting,
-		"generate-name": "c-",
 	})
 
-	if err := unstructured.SetNestedField(cluster.Object, true, "spec", "imported"); err != nil {
+	if err := unstructured.SetNestedField(cluster.Object, "cluster", "type"); err != nil {
 		return nil, fmt.Errorf("failed to create cluster object: %w", err)
 	}
 
-	if err := unstructured.SetNestedField(cluster.Object, params.ClusterName, "spec", "displayName"); err != nil {
+	if err := unstructured.SetNestedField(cluster.Object, params.Name, "name"); err != nil {
 		return nil, fmt.Errorf("failed to create cluster object: %w", err)
 	}
 
-	if err := unstructured.SetNestedField(cluster.Object, params.ClusterDescription, "spec", "description"); err != nil {
+	if err := unstructured.SetNestedField(cluster.Object, params.Description, "description"); err != nil {
 		return nil, fmt.Errorf("failed to create cluster object: %w", err)
 	}
 

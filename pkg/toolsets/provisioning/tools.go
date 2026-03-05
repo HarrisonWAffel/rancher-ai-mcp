@@ -171,7 +171,7 @@ func (t *Tools) AddTools(mcpServer *mcp.Server) {
 					  This should only be used when the user wants to create a new imported cluster. Do not use this tool when the user asks to create a new custom cluster.'
 	
 		Parameters:
-		clusterName (string, required): The name of the cluster to be created.
+		name (string, required): The name of the cluster to be created.
 	    description (string, optional): A short description added to the cluster. Leave empty if not provided
 		versionManagementSetting (string, optional): Specifies the version management setting for the cluster. Potential values are 'system-default', 'true', and 'false'. If not specified, the global version management setting will be used.
 		`},
@@ -186,7 +186,7 @@ func (t *Tools) AddTools(mcpServer *mcp.Server) {
 					  This should only be used when the user wants to create a new imported cluster. Do not use this tool when the user asks to create a new custom cluster.'
 	
 		Parameters:
-		clusterName (string, required): The name of the cluster to be created.
+		name (string, required): The name of the cluster to be created.
 	    description (string, optional): A short description added to the cluster.
 		versionManagementSetting (string, optional): Specifies the version management setting for the cluster. Potential values are 'system-default', 'true', and 'false'. If not specified, the global version management setting will be used.
 		`},
@@ -201,9 +201,9 @@ func (t *Tools) AddTools(mcpServer *mcp.Server) {
    					  This should only be used when the user wants to create a new custom cluster. Do not use this tool if a user asks to create an imported cluster.'
 
 		Parameters:
-		clusterName (string, required): The name of the cluster to be created.
+		name (string, required): The name of the cluster to be created.
 	    description (string, optional): A short description added to the cluster.
-		kubernetesVersion (string, required): The rke2 or k3s version that will be used for the cluster.
+		version (string, required): The rke2 or k3s version that will be used for the cluster.
 		CNI (string, required): The CNI that will be used for the cluster.
 		distribution (string, required): The distribution of the cluster, either "rke2" or "k3s".
 		`},
@@ -218,9 +218,9 @@ func (t *Tools) AddTools(mcpServer *mcp.Server) {
    					  This should only be used when the user wants to create a new custom cluster. Do not use this tool if a user asks to create an imported cluster.'
 
 		Parameters:
-		clusterName (string, required): The name of the cluster to be created.
+		name (string, required): The name of the cluster to be created.
 	    description (string, optional): A short description added to the cluster.
-		kubernetesVersion (string, required): The rke2 or k3s version that will be used for the cluster.
+		version (string, required): The rke2 or k3s version that will be used for the cluster.
 		CNI (string, required): The CNI that will be used for the cluster.
 		distribution (string, required): The distribution of the cluster, either "rke2" or "k3s".
 		`},

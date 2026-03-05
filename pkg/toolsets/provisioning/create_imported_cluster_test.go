@@ -2,13 +2,15 @@ package provisioning
 
 import (
 	"context"
-	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/rancher/rancher-ai-mcp/pkg/client"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
@@ -16,172 +18,79 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-const nameRegex = `^c-[a-z0-9]{5}$`
-
-func TestImportedCluster(t *testing.T) {
+func TestCreateImportedCluster(t *testing.T) {
 	tests := []struct {
-		name           string
-		fakeClientset  kubernetes.Interface
-		fakeDynClient  *dynamicfake.FakeDynamicClient
-		params         createImportedClusterParams
-		expectedError  string
-		expectedResult string
+		name          string
+		params        createImportedClusterParams
+		serverStatus  int
+		serverBody    string
+		serverClosed  bool // simulate an unreachable server
+		expectedError string
 	}{
 		{
-			name:          "valid parameters",
-			fakeClientset: newFakeClientSet(),
-			fakeDynClient: dynamicfake.NewSimpleDynamicClient(provisioningSchemes()),
+			name: "non-201 status code returns error",
 			params: createImportedClusterParams{
-				ClusterName:              "test-cluster",
-				ClusterDescription:       "A test cluster",
+				Name:                     "test-cluster",
 				VersionManagementSetting: "true",
 			},
-			expectedError: "",
-			expectedResult: `{
-  "llm" : [ {
-    "apiVersion" : "management.cattle.io/v3",
-    "kind" : "Cluster",
-    "metadata" : {
-      "annotations" : {
-        "generate-name" : "c-",
-        "rancher.io/imported-cluster-version-management" : "true"
-      },
-      "name" : ""
-    },
-    "spec" : {
-      "description" : "A test cluster",
-      "displayName" : "test-cluster",
-      "imported" : true
-    }
-  } ],
-  "uiContext" : [ {
-    "namespace" : "",
-    "kind" : "Cluster",
-    "cluster" : "local",
-    "name" : "",
-    "type" : "management.cattle.io.cluster"
-  } ]
-}`,
+			serverStatus:  http.StatusConflict,
+			serverBody:    `{"message":"cluster already exists"}`,
+			expectedError: "received non-success status code 409",
 		},
 		{
-			name:          "false version management",
-			fakeClientset: newFakeClientSet(),
-			fakeDynClient: dynamicfake.NewSimpleDynamicClient(provisioningSchemes()),
+			name: "500 internal server error returns error",
 			params: createImportedClusterParams{
-				ClusterName:              "test-cluster",
-				ClusterDescription:       "A test cluster",
-				VersionManagementSetting: "false",
+				Name:                     "test-cluster",
+				VersionManagementSetting: "system-default",
 			},
-			expectedError: "",
-			expectedResult: `{
-  "llm" : [ {
-    "apiVersion" : "management.cattle.io/v3",
-    "kind" : "Cluster",
-    "metadata" : {
-      "annotations" : {
-        "generate-name" : "c-",
-        "rancher.io/imported-cluster-version-management" : "false"
-      },
-      "name" : ""
-    },
-    "spec" : {
-      "description" : "A test cluster",
-      "displayName" : "test-cluster",
-      "imported" : true
-    }
-  } ],
-  "uiContext" : [ {
-    "namespace" : "",
-    "kind" : "Cluster",
-    "cluster" : "local",
-    "name" : "",
-    "type" : "management.cattle.io.cluster"
-  } ]
-}`,
+			serverStatus:  http.StatusInternalServerError,
+			serverBody:    `{"message":"internal server error"}`,
+			expectedError: "received non-success status code 500",
 		},
 		{
-			name:          "missing version management, uses default",
-			fakeClientset: newFakeClientSet(),
-			fakeDynClient: dynamicfake.NewSimpleDynamicClient(provisioningSchemes()),
+			name: "invalid JSON in response body returns error",
 			params: createImportedClusterParams{
-				ClusterName:              "test-cluster",
-				ClusterDescription:       "A test cluster",
+				Name:                     "test-cluster",
+				VersionManagementSetting: "true",
+			},
+			serverStatus:  http.StatusCreated,
+			serverBody:    `not valid json`,
+			expectedError: "failed to unmarshal response body from Rancher API after cluster creation",
+		},
+		{
+			name: "unreachable server returns error",
+			params: createImportedClusterParams{
+				Name:                     "test-cluster",
+				VersionManagementSetting: "true",
+			},
+			serverClosed:  true,
+			expectedError: "failed to make request to Rancher API to create imported cluster",
+		},
+		{
+			name: "missing cluster name returns error before API call",
+			params: createImportedClusterParams{
+				Name:                     "",
+				Description:              "no name cluster",
 				VersionManagementSetting: "",
 			},
-			expectedError: "",
-			expectedResult: `{
-  "llm" : [ {
-    "apiVersion" : "management.cattle.io/v3",
-    "kind" : "Cluster",
-    "metadata" : {
-      "annotations" : {
-        "generate-name" : "c-",
-        "rancher.io/imported-cluster-version-management" : "system-default"
-      },
-      "name" : ""
-    },
-    "spec" : {
-      "description" : "A test cluster",
-      "displayName" : "test-cluster",
-      "imported" : true
-    }
-  } ],
-  "uiContext" : [ {
-    "namespace" : "",
-    "kind" : "Cluster",
-    "cluster" : "local",
-    "name" : "",
-    "type" : "management.cattle.io.cluster"
-  } ]
-}`,
+			serverStatus:  http.StatusCreated,
+			serverBody:    `{}`,
+			expectedError: "name is required",
 		},
 		{
-			name:          "missing description",
-			fakeClientset: newFakeClientSet(),
-			fakeDynClient: dynamicfake.NewSimpleDynamicClient(provisioningSchemes()),
+			name: "valid response with 201 succeeds",
 			params: createImportedClusterParams{
-				ClusterName:              "test-cluster",
-				ClusterDescription:       "",
-				VersionManagementSetting: "",
+				Name:                     "test-cluster",
+				Description:              "A test cluster",
+				VersionManagementSetting: "true",
 			},
+			serverStatus: http.StatusCreated,
+			serverBody: `{
+				"type": "cluster",
+				"name": "test-cluster",
+				"state": "provisioning"
+			}`,
 			expectedError: "",
-			expectedResult: `{
-  "llm" : [ {
-    "apiVersion" : "management.cattle.io/v3",
-    "kind" : "Cluster",
-    "metadata" : {
-      "annotations" : {
-        "generate-name" : "c-",
-        "rancher.io/imported-cluster-version-management" : "system-default"
-      },
-      "name" : ""
-    },
-    "spec" : {
-      "displayName" : "test-cluster",
-	  "description": "",
-      "imported" : true
-    }
-  } ],
-  "uiContext" : [ {
-    "namespace" : "",
-    "kind" : "Cluster",
-    "cluster" : "local",
-    "name" : "",
-    "type" : "management.cattle.io.cluster"
-  } ]
-}`,
-		},
-		{
-			name:          "missing cluster name",
-			fakeClientset: newFakeClientSet(),
-			fakeDynClient: dynamicfake.NewSimpleDynamicClient(provisioningSchemes()),
-			params: createImportedClusterParams{
-				ClusterName:              "",
-				ClusterDescription:       "whats my name again",
-				VersionManagementSetting: "",
-			},
-			expectedError:  "ClusterName is required",
-			expectedResult: "",
 		},
 	}
 
@@ -189,78 +98,163 @@ func TestImportedCluster(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			c := &client.Client{
 				ClientSetCreator: func(inConfig *rest.Config) (kubernetes.Interface, error) {
-					return test.fakeClientset, nil
+					return newFakeClientSet(), nil
 				},
 				DynClientCreator: func(inConfig *rest.Config) (dynamic.Interface, error) {
-					return test.fakeDynClient, nil
+					return dynamicfake.NewSimpleDynamicClient(provisioningSchemes()), nil
 				},
 			}
 			tools := Tools{client: c}
+
+			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(test.serverStatus)
+				w.Write([]byte(test.serverBody))
+			}))
+
+			if test.serverClosed {
+				svr.Close()
+			} else {
+				defer svr.Close()
+			}
 
 			result, _, err := tools.createImportedCluster(context.Background(), &mcp.CallToolRequest{
 				Params: &mcp.CallToolParamsRaw{
 					Name: "createImportedCluster",
 				},
-				Extra: &mcp.RequestExtra{Header: map[string][]string{urlHeader: {testURL}}},
+				Extra: &mcp.RequestExtra{Header: map[string][]string{urlHeader: {svr.URL}}},
 			}, test.params)
 
 			if test.expectedError != "" {
 				assert.ErrorContains(t, err, test.expectedError)
+				assert.Nil(t, result)
 			} else {
-				assert.NoError(t, err)
-
-				text, ok := result.Content[0].(*mcp.TextContent)
-				assert.Truef(t, ok, "expected type *mcp.TextContent")
-				assert.Truef(t, ok, "expected expectedResult to be a JSON string")
-
-				obj := make(map[string]interface{})
-				err = json.Unmarshal([]byte(text.Text), &obj)
-				assert.NoError(t, err)
-
-				strippedResultBytes, err := json.Marshal(checkAndStripClusterNameOnCreate(t, obj))
-				assert.NoError(t, err)
-
-				assert.JSONEq(t, test.expectedResult, string(strippedResultBytes), "expected result does not match actual result")
+				require.NoError(t, err)
+				require.NotNil(t, result)
+				require.NotEmpty(t, result.Content)
+				_, ok := result.Content[0].(*mcp.TextContent)
+				assert.True(t, ok, "expected result content to be *mcp.TextContent")
 			}
 		})
 	}
 }
 
-// NB: Imported clusters have a randomly generated name assigned to them.
-// In order to compare the actual result with the expected result, we need to
-// strip out the name from the actual result, as it will be different every time the test is run.
-// This function will validate that the name is in the correct format
-// (starts with "c-" followed by 5 random alphanumeric characters) and then empty out the relevant name fields.
-func checkAndStripClusterNameOnCreate(t *testing.T, obj map[string]interface{}) map[string]interface{} {
-	llmSlice, found, _ := unstructured.NestedSlice(obj, "llm")
-	assert.True(t, found)
-	assert.Equal(t, len(llmSlice), 1)
-	firstItem, ok := llmSlice[0].(map[string]interface{})
-	assert.True(t, ok)
+func TestCreateImportedClusterObj(t *testing.T) {
+	tools := Tools{}
 
-	name, found, err := unstructured.NestedString(firstItem, "metadata", "name")
-	assert.NoError(t, err)
-	assert.True(t, found)
-	assert.Regexp(t, nameRegex, name, "expected name to match the pattern 'c-' followed by 5 random alphanumeric characters")
-	err = unstructured.SetNestedField(firstItem, "", "metadata", "name")
-	assert.NoError(t, err)
-	llmSlice[0] = firstItem
+	tests := []struct {
+		name          string
+		params        createImportedClusterParams
+		expectedError string
+		validate      func(t *testing.T, cluster *unstructured.Unstructured)
+	}{
+		{
+			name: "valid parameters with explicit version management true",
+			params: createImportedClusterParams{
+				Name:                     "test-cluster",
+				Description:              "A test cluster",
+				VersionManagementSetting: "true",
+			},
+			validate: func(t *testing.T, cluster *unstructured.Unstructured) {
+				annotations := cluster.GetAnnotations()
+				assert.Equal(t, "true", annotations["rancher.io/imported-cluster-version-management"])
 
-	uiContextSlice, found, _ := unstructured.NestedSlice(obj, "uiContext")
-	assert.True(t, found)
-	assert.Equal(t, len(uiContextSlice), 1)
-	itemMap, ok := uiContextSlice[0].(map[string]interface{})
-	assert.True(t, ok)
+				name, _, _ := unstructured.NestedString(cluster.Object, "name")
+				assert.Equal(t, "test-cluster", name)
 
-	name, ok = itemMap["name"].(string)
-	assert.True(t, ok)
-	assert.NotNil(t, name)
-	assert.Regexp(t, nameRegex, name, "expected name to match the pattern 'c-' followed by 5 random alphanumeric characters")
-	itemMap["name"] = ""
-	uiContextSlice[0] = itemMap
+				desc, _, _ := unstructured.NestedString(cluster.Object, "description")
+				assert.Equal(t, "A test cluster", desc)
+			},
+		},
+		{
+			name: "valid parameters with explicit version management false",
+			params: createImportedClusterParams{
+				Name:                     "my-cluster",
+				VersionManagementSetting: "false",
+			},
+			validate: func(t *testing.T, cluster *unstructured.Unstructured) {
+				annotations := cluster.GetAnnotations()
+				assert.Equal(t, "false", annotations["rancher.io/imported-cluster-version-management"])
+			},
+		},
+		{
+			name: "empty version management defaults to system-default",
+			params: createImportedClusterParams{
+				Name:                     "my-cluster",
+				VersionManagementSetting: "",
+			},
+			validate: func(t *testing.T, cluster *unstructured.Unstructured) {
+				annotations := cluster.GetAnnotations()
+				assert.Equal(t, "system-default", annotations["rancher.io/imported-cluster-version-management"])
+			},
+		},
+		{
+			name: "explicit system-default version management",
+			params: createImportedClusterParams{
+				Name:                     "my-cluster",
+				VersionManagementSetting: "system-default",
+			},
+			validate: func(t *testing.T, cluster *unstructured.Unstructured) {
+				annotations := cluster.GetAnnotations()
+				assert.Equal(t, "system-default", annotations["rancher.io/imported-cluster-version-management"])
+			},
+		},
+		{
+			name: "missing name returns error",
+			params: createImportedClusterParams{
+				Name:                     "",
+				Description:              "no name",
+				VersionManagementSetting: "true",
+			},
+			expectedError: "name is required",
+		},
+		{
+			name: "invalid version management setting returns error",
+			params: createImportedClusterParams{
+				Name:                     "my-cluster",
+				VersionManagementSetting: "maybe",
+			},
+			expectedError: "invalid value for VersionManagementSetting: maybe",
+		},
+		{
+			name: "description is set on the object",
+			params: createImportedClusterParams{
+				Name:                     "my-cluster",
+				Description:              "hello world",
+				VersionManagementSetting: "true",
+			},
+			validate: func(t *testing.T, cluster *unstructured.Unstructured) {
+				desc, _, _ := unstructured.NestedString(cluster.Object, "description")
+				assert.Equal(t, "hello world", desc)
+			},
+		},
+		{
+			name: "empty description is set on the object",
+			params: createImportedClusterParams{
+				Name:                     "my-cluster",
+				Description:              "",
+				VersionManagementSetting: "true",
+			},
+			validate: func(t *testing.T, cluster *unstructured.Unstructured) {
+				desc, _, _ := unstructured.NestedString(cluster.Object, "description")
+				assert.Equal(t, "", desc)
+			},
+		},
+	}
 
-	obj["llm"] = llmSlice
-	obj["uiContext"] = uiContextSlice
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cluster, err := tools.createImportedClusterObj(test.params)
 
-	return obj
+			if test.expectedError != "" {
+				assert.ErrorContains(t, err, test.expectedError)
+				assert.Nil(t, cluster)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, cluster)
+				if test.validate != nil {
+					test.validate(t, cluster)
+				}
+			}
+		})
+	}
 }

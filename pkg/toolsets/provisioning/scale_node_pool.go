@@ -23,7 +23,7 @@ type scaleNodePoolParameters struct {
 	NodePoolName     string `json:"nodePoolName" jsonschema:"the name of the node pool to scale"`
 	DesiredSize      int    `json:"desiredSize,omitempty" jsonschema:"the desired size of the node pool"`
 	AmountToAdd      int    `json:"amountToAdd,omitempty" jsonschema:"the amount of nodes to add to the node pool. if specified, DesiredSize will be ignored"`
-	AmountToSubtract int    `json:"AmountToSubtract,omitempty" jsonschema:"the amount of nodes to remove from the node pool. if specified, DesiredSize will be ignored"`
+	AmountToSubtract int    `json:"amountToSubtract,omitempty" jsonschema:"the amount of nodes to remove from the node pool. if specified, DesiredSize will be ignored"`
 }
 
 func (t *Tools) scaleClusterNodePool(ctx context.Context, toolReq *mcp.CallToolRequest, params scaleNodePoolParameters) (*mcp.CallToolResult, any, error) {
@@ -116,31 +116,44 @@ func (t *Tools) scaleClusterNodePoolPatch(ctx context.Context, toolReq *mcp.Call
 	for i := range provCluster.Spec.RKEConfig.MachinePools {
 		pool := &provCluster.Spec.RKEConfig.MachinePools[i]
 		// accept either the concrete node pool name, or the node pool name prefixed with the cluster name (as seen in the Rancher UI)
-		if params.NodePoolName == pool.Name || params.NodePoolName == provCluster.Name+"-"+pool.Name {
-			log.Debug("node pool found in cluster RKEConfig, updating desired size", zap.Int32("current_size", *pool.Quantity))
-			poolIndex = i
-			oldQuantity := *pool.Quantity
-
-			if amountToAdd != 0 {
-				desiredSize = *pool.Quantity + amountToAdd
-			}
-
-			if amountToSubtract != 0 {
-				desiredSize = *pool.Quantity - amountToSubtract
-			}
-
-			if pool.EtcdRole && desiredSize < 3 && desiredSize < oldQuantity {
-				log.Error("will not scale etcd node pool below 3 nodes to prevent loss of quorum")
-				return nil, fmt.Errorf("refusing to scale etcd node pool below 3 nodes to prevent loss of quorum and potential data loss. instruct user must scale pool manually if absolutely required")
-			}
-
-			if desiredSize <= 0 {
-				log.Error("A node pool cannot be scaled to 0 nodes or a negative number of nodes")
-				return nil, fmt.Errorf("A node pool cannot be scaled to 0 nodes or a negative number of nodes")
-			}
-
-			break
+		if params.NodePoolName != pool.Name && params.NodePoolName != provCluster.Name+"-"+pool.Name {
+			continue
 		}
+
+		log.Debug("node pool found in cluster RKEConfig, updating desired size", zap.Int32("current_size", *pool.Quantity))
+		poolIndex = i
+		oldQuantity := *pool.Quantity
+
+		if amountToAdd != 0 {
+			desiredSize = *pool.Quantity + amountToAdd
+		}
+
+		if amountToSubtract != 0 {
+			desiredSize = *pool.Quantity - amountToSubtract
+		}
+
+		if pool.EtcdRole {
+			if desiredSize < 3 && desiredSize < oldQuantity {
+				log.Error("Refusing to scale etcd node pool to less than 3 nodes to prevent loss of quorum")
+				return nil, fmt.Errorf("scaling an etcd node pool to less than 3 nodes can result in a loss of quorum and potential data loss")
+			}
+
+			if desiredSize > 7 {
+				log.Error("Refusing to scale etcd node pool to more than 7 nodes")
+				return nil, fmt.Errorf("it is not recommended to have more than 7 etcd nodes in a cluster as it can lead to performance issues")
+			}
+
+			if desiredSize%2 == 0 {
+				log.Error("Refusing to scale etcd node pool to an even number of nodes.")
+				return nil, fmt.Errorf("etcd node pools should have an odd number of nodes to ensure fault tolerance and maintain quorum. Scaling to an even number of nodes can lead to split-brain scenarios and potential data loss")
+			}
+		}
+
+		if desiredSize <= 0 {
+			log.Error("Refusing to scale a node pool to 0 or a negative number of nodes")
+			return nil, fmt.Errorf("A node pool cannot be scaled to 0 nodes or a negative number of nodes")
+		}
+		break
 	}
 
 	if poolIndex == -1 {
