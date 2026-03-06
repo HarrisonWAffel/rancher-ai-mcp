@@ -17,7 +17,7 @@ import (
 
 func TestAnalyzeCluster(t *testing.T) {
 	tests := map[string]struct {
-		params        InspectClusterParams
+		params        inspectClusterParams
 		fakeClientset kubernetes.Interface
 		fakeDynClient *dynamicfake.FakeDynamicClient
 		// used in the CallToolRequest
@@ -28,13 +28,13 @@ func TestAnalyzeCluster(t *testing.T) {
 		expectedError  string
 	}{
 		"analyze cluster with all resources": {
-			params: InspectClusterParams{
+			params: inspectClusterParams{
 				Cluster:   "test-cluster",
 				Namespace: "fleet-default",
 			},
 			requestURL:    testURL,
-			fakeClientset: newFakeClientsetWithCAPIDiscovery(),
-			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(capiMachineScheme(), capiCustomListKinds(),
+			fakeClientset: newFakeClientSet(),
+			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(provisioningSchemes(), provisioningCustomListKinds(),
 				newProvisioningCluster("test-cluster", "fleet-default", "c-m-abc123"),
 				newCAPICluster("test-cluster", "fleet-default"),
 				newCAPIMachine("test-cluster-machine-1", "fleet-default", "test-cluster", "Running", "test-cluster-machineset-1"),
@@ -221,13 +221,13 @@ func TestAnalyzeCluster(t *testing.T) {
 			}`,
 		},
 		"analyze cluster without CAPI cluster": {
-			params: InspectClusterParams{
+			params: inspectClusterParams{
 				Cluster:   "test-cluster",
 				Namespace: "fleet-default",
 			},
 			requestURL:    testURL,
-			fakeClientset: newFakeClientsetWithCAPIDiscovery(),
-			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(capiMachineScheme(), capiCustomListKinds(),
+			fakeClientset: newFakeClientSet(),
+			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(provisioningSchemes(), provisioningCustomListKinds(),
 				newProvisioningCluster("test-cluster", "fleet-default", "c-m-abc123"),
 				newManagementCluster("c-m-abc123", true),
 			),
@@ -285,13 +285,13 @@ func TestAnalyzeCluster(t *testing.T) {
 			}`,
 		},
 		"analyze cluster without machines": {
-			params: InspectClusterParams{
+			params: inspectClusterParams{
 				Cluster:   "test-cluster",
 				Namespace: "fleet-default",
 			},
 			requestURL:    testURL,
-			fakeClientset: newFakeClientsetWithCAPIDiscovery(),
-			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(capiMachineScheme(), capiCustomListKinds(),
+			fakeClientset: newFakeClientSet(),
+			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(provisioningSchemes(), provisioningCustomListKinds(),
 				newProvisioningCluster("test-cluster", "fleet-default", "c-m-abc123"),
 				newCAPICluster("test-cluster", "fleet-default"),
 				newManagementCluster("c-m-abc123", true),
@@ -380,13 +380,13 @@ func TestAnalyzeCluster(t *testing.T) {
 			}`,
 		},
 		"analyze local cluster with default namespace": {
-			params: InspectClusterParams{
+			params: inspectClusterParams{
 				Cluster:   "local",
 				Namespace: "",
 			},
 			requestURL:    testURL,
-			fakeClientset: newFakeClientsetWithCAPIDiscovery(),
-			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(capiMachineScheme(), capiCustomListKinds(),
+			fakeClientset: newFakeClientSet(),
+			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(provisioningSchemes(), provisioningCustomListKinds(),
 				newProvisioningCluster("local", "fleet-local", "local"),
 				newManagementCluster("local", true),
 			),
@@ -444,23 +444,23 @@ func TestAnalyzeCluster(t *testing.T) {
 			}`,
 		},
 		"analyze cluster not found": {
-			params: InspectClusterParams{
+			params: inspectClusterParams{
 				Cluster:   "nonexistent-cluster",
 				Namespace: "fleet-default",
 			},
 			requestURL:    testURL,
-			fakeClientset: newFakeClientsetWithCAPIDiscovery(),
-			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(capiMachineScheme(), capiCustomListKinds()),
+			fakeClientset: newFakeClientSet(),
+			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(provisioningSchemes(), provisioningCustomListKinds()),
 			expectedError: "provisioning cluster nonexistent-cluster not found in namespace fleet-default",
 		},
 		"analyze cluster with multiple machines and sets": {
-			params: InspectClusterParams{
+			params: inspectClusterParams{
 				Cluster:   "multi-cluster",
 				Namespace: "fleet-default",
 			},
 			requestURL:    testURL,
-			fakeClientset: newFakeClientsetWithCAPIDiscovery(),
-			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(capiMachineScheme(), capiCustomListKinds(),
+			fakeClientset: newFakeClientSet(),
+			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(provisioningSchemes(), provisioningCustomListKinds(),
 				newProvisioningCluster("multi-cluster", "fleet-default", "c-m-multi123"),
 				newManagementCluster("c-m-multi123", true),
 				newCAPICluster("multi-cluster", "fleet-default"),
@@ -778,13 +778,13 @@ func TestAnalyzeCluster(t *testing.T) {
 			}`,
 		},
 		"analyze cluster with not-ready management cluster": {
-			params: InspectClusterParams{
+			params: inspectClusterParams{
 				Cluster:   "unhealthy-cluster",
 				Namespace: "fleet-default",
 			},
 			requestURL:    testURL,
-			fakeClientset: newFakeClientsetWithCAPIDiscovery(),
-			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(capiMachineScheme(), capiCustomListKinds(),
+			fakeClientset: newFakeClientSet(),
+			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(provisioningSchemes(), provisioningCustomListKinds(),
 				newProvisioningCluster("unhealthy-cluster", "fleet-default", "c-m-unhealthy"),
 				newManagementCluster("c-m-unhealthy", false),
 			),
@@ -842,13 +842,13 @@ func TestAnalyzeCluster(t *testing.T) {
 			}`,
 		},
 		"analyze cluster with RKE machine pools and machine configs": {
-			params: InspectClusterParams{
+			params: inspectClusterParams{
 				Cluster:   "rke-cluster",
 				Namespace: "fleet-default",
 			},
 			requestURL:    testURL,
-			fakeClientset: newFakeClientsetWithCAPIDiscovery(),
-			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(capiMachineScheme(), capiCustomListKinds(),
+			fakeClientset: newFakeClientSet(),
+			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(provisioningSchemes(), provisioningCustomListKinds(),
 				newProvisioningClusterWithRKEConfig("rke-cluster", "fleet-default", "c-m-rke123", []provisioningV1.RKEMachinePool{
 					newMachinePool("pool1", "rke-cluster-pool1-config", "Amazonec2Config", 3),
 				}),
@@ -1099,13 +1099,13 @@ func TestAnalyzeCluster(t *testing.T) {
 			}`,
 		},
 		"analyze cluster with namespace not set (defaults to fleet-default)": {
-			params: InspectClusterParams{
+			params: inspectClusterParams{
 				Cluster:   "test-cluster",
 				Namespace: "",
 			},
 			requestURL:    testURL,
-			fakeClientset: newFakeClientsetWithCAPIDiscovery(),
-			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(capiMachineScheme(), capiCustomListKinds(),
+			fakeClientset: newFakeClientSet(),
+			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(provisioningSchemes(), provisioningCustomListKinds(),
 				newProvisioningCluster("test-cluster", "fleet-default", "c-m-abc123"),
 				newManagementCluster("c-m-abc123", true),
 				newCAPICluster("test-cluster", "fleet-default"),
@@ -1194,13 +1194,13 @@ func TestAnalyzeCluster(t *testing.T) {
 			}`,
 		},
 		"analyze cluster with only provisioning and management cluster": {
-			params: InspectClusterParams{
+			params: inspectClusterParams{
 				Cluster:   "minimal-cluster",
 				Namespace: "fleet-default",
 			},
 			requestURL:    testURL,
-			fakeClientset: newFakeClientsetWithCAPIDiscovery(),
-			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(capiMachineScheme(), capiCustomListKinds(),
+			fakeClientset: newFakeClientSet(),
+			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(provisioningSchemes(), provisioningCustomListKinds(),
 				newProvisioningCluster("minimal-cluster", "fleet-default", "c-m-minimal"),
 				newManagementCluster("c-m-minimal", true),
 			),
@@ -1258,13 +1258,13 @@ func TestAnalyzeCluster(t *testing.T) {
 			}`,
 		},
 		"analyze cluster with single machine and full hierarchy": {
-			params: InspectClusterParams{
+			params: inspectClusterParams{
 				Cluster:   "single-machine-cluster",
 				Namespace: "fleet-default",
 			},
 			requestURL:    testURL,
-			fakeClientset: newFakeClientsetWithCAPIDiscovery(),
-			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(capiMachineScheme(), capiCustomListKinds(),
+			fakeClientset: newFakeClientSet(),
+			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(provisioningSchemes(), provisioningCustomListKinds(),
 				newProvisioningCluster("single-machine-cluster", "fleet-default", "c-m-single"),
 				newManagementCluster("c-m-single", true),
 				newCAPICluster("single-machine-cluster", "fleet-default"),
@@ -1451,12 +1451,12 @@ func TestAnalyzeCluster(t *testing.T) {
 			}`,
 		},
 		"analyze cluster - no rancherURL or request URL": {
-			params: InspectClusterParams{
+			params: inspectClusterParams{
 				Cluster:   "test-cluster",
 				Namespace: "fleet-default",
 			},
-			fakeClientset: newFakeClientsetWithCAPIDiscovery(),
-			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(capiMachineScheme(), capiCustomListKinds(),
+			fakeClientset: newFakeClientSet(),
+			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(provisioningSchemes(), provisioningCustomListKinds(),
 				newProvisioningCluster("test-cluster", "fleet-default", "c-m-abc123"),
 				newManagementCluster("c-m-abc123", true),
 			),
@@ -1478,7 +1478,7 @@ func TestAnalyzeCluster(t *testing.T) {
 			req := test.NewCallToolRequest(tt.requestURL)
 			req.Params = &mcp.CallToolParamsRaw{Name: "analyze-cluster"}
 
-			result, _, err := tools.AnalyzeCluster(middleware.WithToken(t.Context(), testToken), req, tt.params)
+			result, _, err := tools.analyzeCluster(middleware.WithToken(t.Context(), testToken), req, tt.params)
 
 			if tt.expectedError != "" {
 				assert.ErrorContains(t, err, tt.expectedError)

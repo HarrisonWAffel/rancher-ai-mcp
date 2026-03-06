@@ -137,7 +137,7 @@ func TestAnalyzeClusterMachines(t *testing.T) {
 	fakeToken := "fakeToken"
 
 	tests := map[string]struct {
-		params        InspectClusterMachinesParams
+		params        inspectClusterMachinesParams
 		fakeClientset kubernetes.Interface
 		fakeDynClient *dynamicfake.FakeDynamicClient
 		// used in the CallToolRequest
@@ -148,13 +148,13 @@ func TestAnalyzeClusterMachines(t *testing.T) {
 		expectedError  string
 	}{
 		"analyze cluster with machines, machine sets, and deployments": {
-			params: InspectClusterMachinesParams{
+			params: inspectClusterMachinesParams{
 				Cluster:   "test-cluster",
 				Namespace: "fleet-default",
 			},
 			requestURL:    testURL,
-			fakeClientset: newFakeClientsetWithCAPIDiscovery(),
-			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(capiMachineScheme(), capiCustomListKinds(),
+			fakeClientset: newFakeClientSet(),
+			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(provisioningSchemes(), provisioningCustomListKinds(),
 				fakeCAPIMachine, fakeCAPIMachine2, fakeCAPIMachineSet, fakeCAPIMachineDeployment),
 			expectedResult: `{
 				"llm": [
@@ -297,23 +297,23 @@ func TestAnalyzeClusterMachines(t *testing.T) {
 			}`,
 		},
 		"analyze cluster with no machines": {
-			params: InspectClusterMachinesParams{
+			params: inspectClusterMachinesParams{
 				Cluster:   "empty-cluster",
 				Namespace: "fleet-default",
 			},
 			requestURL:     testURL,
-			fakeClientset:  newFakeClientsetWithCAPIDiscovery(),
-			fakeDynClient:  dynamicfake.NewSimpleDynamicClientWithCustomListKinds(capiMachineScheme(), capiCustomListKinds()),
+			fakeClientset:  newFakeClientSet(),
+			fakeDynClient:  dynamicfake.NewSimpleDynamicClientWithCustomListKinds(provisioningSchemes(), provisioningCustomListKinds()),
 			expectedResult: `{"llm":"no resources found"}`,
 		},
 		"analyze cluster with default namespace": {
-			params: InspectClusterMachinesParams{
+			params: inspectClusterMachinesParams{
 				Cluster:   "test-cluster",
 				Namespace: "",
 			},
 			requestURL:    testURL,
-			fakeClientset: newFakeClientsetWithCAPIDiscovery(),
-			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(capiMachineScheme(), capiCustomListKinds(),
+			fakeClientset: newFakeClientSet(),
+			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(provisioningSchemes(), provisioningCustomListKinds(),
 				fakeCAPIMachine, fakeCAPIMachineSet, fakeCAPIMachineDeployment),
 			expectedResult: `{
 				"llm": [
@@ -424,13 +424,13 @@ func TestAnalyzeClusterMachines(t *testing.T) {
 			}`,
 		},
 		"analyze cluster with only machines (no sets or deployments, custom cluster)": {
-			params: InspectClusterMachinesParams{
+			params: inspectClusterMachinesParams{
 				Cluster:   "test-cluster",
 				Namespace: "fleet-default",
 			},
 			requestURL:    testURL,
-			fakeClientset: newFakeClientsetWithCAPIDiscovery(),
-			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(capiMachineScheme(), capiCustomListKinds(),
+			fakeClientset: newFakeClientSet(),
+			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(provisioningSchemes(), provisioningCustomListKinds(),
 				fakeCAPIMachine),
 			expectedResult: `{
 				"llm": [
@@ -478,22 +478,22 @@ func TestAnalyzeClusterMachines(t *testing.T) {
 			}`,
 		},
 		"analyze cluster machines when the tool is configured with a rancher URL": {
-			params: InspectClusterMachinesParams{
+			params: inspectClusterMachinesParams{
 				Cluster:   "empty-cluster",
 				Namespace: "fleet-default",
 			},
 			rancherURL:     testURL,
-			fakeClientset:  newFakeClientsetWithCAPIDiscovery(),
-			fakeDynClient:  dynamicfake.NewSimpleDynamicClientWithCustomListKinds(capiMachineScheme(), capiCustomListKinds()),
+			fakeClientset:  newFakeClientSet(),
+			fakeDynClient:  dynamicfake.NewSimpleDynamicClientWithCustomListKinds(provisioningSchemes(), provisioningCustomListKinds()),
 			expectedResult: `{"llm":"no resources found"}`,
 		},
 		"analyze cluster machines - no rancherURL or request URL": {
-			params: InspectClusterMachinesParams{
+			params: inspectClusterMachinesParams{
 				Cluster:   "empty-cluster",
 				Namespace: "fleet-default",
 			},
-			fakeClientset: newFakeClientsetWithCAPIDiscovery(),
-			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(capiMachineScheme(), capiCustomListKinds()),
+			fakeClientset: newFakeClientSet(),
+			fakeDynClient: dynamicfake.NewSimpleDynamicClientWithCustomListKinds(provisioningSchemes(), provisioningCustomListKinds()),
 			expectedError: "no URL for rancher request",
 		},
 	}
@@ -515,7 +515,7 @@ func TestAnalyzeClusterMachines(t *testing.T) {
 				Name: "analyze-cluster-machines",
 			}
 
-			result, _, err := tools.AnalyzeClusterMachines(middleware.WithToken(t.Context(), fakeToken), req, tt.params)
+			result, _, err := tools.analyzeClusterMachines(middleware.WithToken(t.Context(), fakeToken), req, tt.params)
 
 			if tt.expectedError != "" {
 				assert.ErrorContains(t, err, tt.expectedError)

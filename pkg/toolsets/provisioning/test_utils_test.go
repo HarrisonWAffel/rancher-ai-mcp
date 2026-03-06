@@ -1,6 +1,8 @@
 package provisioning
 
 import (
+	"encoding/json"
+
 	provisioningV1 "github.com/rancher/rancher/pkg/apis/provisioning.cattle.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,8 +21,8 @@ const (
 	testToken = "fakeToken"
 )
 
-// capiMachineScheme returns a runtime scheme with core API types registered
-func capiMachineScheme() *runtime.Scheme {
+// provisioningSchemes returns a runtime scheme with core API types registered
+func provisioningSchemes() *runtime.Scheme {
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
 	_ = metav1.AddMetaToScheme(scheme)
@@ -28,8 +30,8 @@ func capiMachineScheme() *runtime.Scheme {
 	return scheme
 }
 
-// capiCustomListKinds returns a map of custom list kinds for CAPI resources
-func capiCustomListKinds() map[schema.GroupVersionResource]string {
+// provisioningCustomListKinds returns a map of custom list kinds for CAPI resources
+func provisioningCustomListKinds() map[schema.GroupVersionResource]string {
 	return map[schema.GroupVersionResource]string{
 		{Group: "provisioning.cattle.io", Version: "v1", Resource: "clusters"}:               "ClusterList",
 		{Group: "cluster.x-k8s.io", Version: "v1beta1", Resource: "clusters"}:                "ClusterList",
@@ -55,17 +57,17 @@ type clientsetWithCAPIDiscovery struct {
 }
 
 func (c *clientsetWithCAPIDiscovery) Discovery() discovery.DiscoveryInterface {
-	return &fakeDiscoveryWithCAPI{
+	return &fakeProvisioningDiscovery{
 		FakeDiscovery: c.Clientset.Discovery().(*fakediscovery.FakeDiscovery),
 	}
 }
 
-// fakeDiscoveryWithCAPI extends fake discovery to return CAPI API groups
-type fakeDiscoveryWithCAPI struct {
+// fakeProvisioningDiscovery extends fake discovery to return CAPI API groups
+type fakeProvisioningDiscovery struct {
 	*fakediscovery.FakeDiscovery
 }
 
-func (d *fakeDiscoveryWithCAPI) ServerGroups() (*metav1.APIGroupList, error) {
+func (d *fakeProvisioningDiscovery) ServerGroups() (*metav1.APIGroupList, error) {
 	return &metav1.APIGroupList{
 		Groups: []metav1.APIGroup{
 			{
@@ -82,8 +84,8 @@ func (d *fakeDiscoveryWithCAPI) ServerGroups() (*metav1.APIGroupList, error) {
 	}, nil
 }
 
-// newFakeClientsetWithCAPIDiscovery creates a clientset with proper CAPI API group discovery
-func newFakeClientsetWithCAPIDiscovery() kubernetes.Interface {
+// newFakeClientSet creates a fake clientset
+func newFakeClientSet() kubernetes.Interface {
 	fakeClient := fake.NewClientset()
 	return &clientsetWithCAPIDiscovery{
 		Clientset: fakeClient,
@@ -377,4 +379,20 @@ func newK3kCluster(name string, mode string, version string, servers int, agents
 			},
 		},
 	}
+}
+
+func createDummyKDMData(versions ...string) string {
+	m := make(map[string]interface{})
+	m["resourceType"] = "releases"
+	d := make([]interface{}, len(versions))
+	for i, v := range versions {
+		d[i] = map[string]interface{}{
+			"id":      v,
+			"type":    "release",
+			"version": v,
+		}
+	}
+	m["data"] = d
+	result, _ := json.Marshal(m)
+	return string(result)
 }
