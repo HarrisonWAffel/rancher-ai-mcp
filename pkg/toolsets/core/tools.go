@@ -241,4 +241,37 @@ func (t *Tools) AddTools(mcpServer *mcp.Server) {
 		namespace (string): (optional) The name of a specific namespace. If provided, only data for this namespace is returned.`},
 		t.getResourceUsage,
 	)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "createProject",
+		Meta: map[string]any{
+			toolsSetAnn: toolsSet,
+		},
+		Description: `Creates a project resource for a specified cluster with the given containerResourceQuota.
+		Parameters:
+		cluster (string): The name of the cluster the project belongs to.
+		name (string): The name of the project to be created.
+		description (string, optional): An optional description for the project.
+		displayName (string, optional): An optional display name for the project.
+		cpuLimit (string, optional): The maximum amount of CPU resources (in mCPUs) that can be used by containers in the project.
+		cpuReservation (string, optional): The amount of CPU resources (in mCPUs) reserved for containers in the project.
+		memoryLimit (string, optional): The maximum amount of memory resources (in MiB) that can be used by containers in the project.
+		memoryReservation (string, optional): The amount of memory resources (in MiB) reserved for containers in the project.`},
+		t.createProject)
+
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "createProjectPlan",
+		Meta: map[string]any{
+			toolsSetAnn: toolsSet,
+		},
+		Description: `Plans to create a project resource for a specified cluster. It returns the JSON representation of the project to be created without actually creating it in the cluster. Only used for displaying the resource when using human validation.
+		Parameters:
+		cluster (string): The name of the cluster the project belongs to.
+		name (string): The name of the project to be created.
+		description (string, optional): An optional description for the project.
+		displayName (string, optional): An optional display name for the project.
+		cpuLimit (string, optional): The maximum amount of CPU resources (in mCPUs) that can be used by containers in the project.
+		cpuReservation (string, optional): The amount of CPU resources (in mCPUs) reserved for containers in the project.
+		memoryLimit (string, optional): The maximum amount of memory resources (in MiB) that can be used by containers in the project.
+		memoryReservation (string, optional): The amount of memory resources (in MiB) reserved for containers in the project.`},
+		t.createProjectPlan)
 }
