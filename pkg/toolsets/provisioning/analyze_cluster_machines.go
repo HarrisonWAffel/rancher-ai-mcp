@@ -12,8 +12,9 @@ import (
 )
 
 type inspectClusterMachinesParams struct {
-	Cluster   string `json:"cluster" jsonschema:"the name of the Kubernetes cluster"`
-	Namespace string `json:"namespace,omitempty" jsonschema:"the namespace where the resource is located. The default namespace will be used if not provided"`
+	Cluster      string `json:"cluster" jsonschema:"the name of the Kubernetes cluster"`
+	Namespace    string `json:"namespace,omitempty" jsonschema:"the namespace where the resource is located. The default namespace will be used if not provided"`
+	MachinesOnly bool   `json:"machines_only" jsonschema:"indicates if the request should only return the CAPI Machine objects, and not the deployments or machine sets"`
 }
 
 // analyzeClusterMachines returns the cluster API machines, machine sets, and machine deployments, for a given provisioning cluster.
@@ -43,11 +44,11 @@ func (t *Tools) analyzeClusterMachines(ctx context.Context, toolReq *mcp.CallToo
 		resources = append(resources, machines...)
 	}
 
-	if len(machineSets) > 0 {
+	if len(machineSets) > 0 && !params.MachinesOnly {
 		resources = append(resources, machineSets...)
 	}
 
-	if len(machineDeployments) > 0 {
+	if len(machineDeployments) > 0 && !params.MachinesOnly {
 		resources = append(resources, machineDeployments...)
 	}
 

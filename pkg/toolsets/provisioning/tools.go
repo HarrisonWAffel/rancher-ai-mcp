@@ -8,6 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -22,6 +23,7 @@ type toolsClient interface {
 	GetResourceByGVR(ctx context.Context, params client.GetParams, gvr schema.GroupVersionResource) (*unstructured.Unstructured, error)
 	GetResources(ctx context.Context, params client.ListParams) ([]*unstructured.Unstructured, error)
 	GetResourceInterface(ctx context.Context, token string, namespace string, cluster string, gvr schema.GroupVersionResource) (dynamic.ResourceInterface, error)
+	CreateClientSet(ctx context.Context, token string, cluster string) (kubernetes.Interface, error)
 	RancherURL() string
 }
 
@@ -40,6 +42,14 @@ func NewTools(client toolsClient, readOnly bool) *Tools {
 }
 
 func (t *Tools) AddTools(mcpServer *mcp.Server) {
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "investigateFailedPlanApplication",
+		Meta: map[string]any{
+			toolsSetAnn: toolsSet,
+		},
+		Description: `Retrieves information specific to a single node which helps debug failed plan execution. system-agent logs and excerpts from the relevant machine-plan file are returned as a combined json blob.`},
+		t.investigateFailedPlanApplication)
+
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "analyzeCluster",
 		Meta: map[string]any{
