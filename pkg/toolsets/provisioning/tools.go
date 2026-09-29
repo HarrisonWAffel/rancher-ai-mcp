@@ -5,6 +5,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/rancher/rancher-ai-mcp/pkg/client"
+	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
@@ -30,25 +31,39 @@ type toolsClient interface {
 // Tools contains tools for accessing provisioning information.
 type Tools struct {
 	client   toolsClient
+	flags    *pflag.FlagSet
 	ReadOnly bool
 }
 
 // NewTools creates and returns a new Tools instance.
-func NewTools(client toolsClient, readOnly bool) *Tools {
+func NewTools(client toolsClient, flags *pflag.FlagSet, readOnly bool) *Tools {
 	return &Tools{
 		client:   client,
 		ReadOnly: readOnly,
+		flags:    flags,
 	}
 }
 
 func (t *Tools) AddTools(mcpServer *mcp.Server) {
+	toolboxImage, err := t.flags.GetString("toolbox-image")
+	if err == nil && toolboxImage != "" {
+		mcp.AddTool(mcpServer, &mcp.Tool{
+			Name: "investigateFailedProvisioningPlanApplication",
+			Meta: map[string]any{
+				toolsSetAnn: toolsSet,
+			},
+			Description: `Retrieves information specific to a single node which helps debug failed plan execution. system-agent logs and excerpts from the relevant machine-plan file are returned as a combined json blob.
+The logs gathered from this tool should not be displayed to the user unless explicitly requested. This tool cannot be used on the local cluster or non-CAPI clusters (e.g. aks, eks, gke, k3k, etc.).`},
+			t.investigateFailedPlanApplication)
+	}
+
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "investigateFailedPlanApplication",
+		Name: "investigateFailedPlanApplicationPlan",
 		Meta: map[string]any{
 			toolsSetAnn: toolsSet,
 		},
-		Description: `Retrieves information specific to a single node which helps debug failed plan execution. system-agent logs and excerpts from the relevant machine-plan file are returned as a combined json blob.`},
-		t.investigateFailedPlanApplication)
+		Description: `Plans to create a job on the target cluster which scrapes the journald logs of the rancher-system-agent systemd unit, to help diagnose plan failure errors.`},
+		t.investigateFailedPlanApplicationPlan)
 
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "analyzeCluster",

@@ -33,6 +33,7 @@ var (
 	authzServerURL string
 	jwksURL        string
 	resourceURL    string
+	toolBoxImage   string
 )
 
 var serveCmd = &cobra.Command{
@@ -52,6 +53,7 @@ func init() {
 	serveCmd.Flags().StringVar(&authzServerURL, "authz-server-url", "", "Authorization Server URL - used to generate the OIDC urls")
 	serveCmd.Flags().StringVar(&jwksURL, "jwks-url", "", "JWKS URL - from the OAuth2 server")
 	serveCmd.Flags().StringVar(&resourceURL, "resource-url", "", "Resource URL for this server - this should be the address to access the MCP server")
+	serveCmd.Flags().StringVar(&toolBoxImage, "toolbox-image", "", "The image to use when liz deploys operations pods")
 }
 
 func runServe(cmd *cobra.Command, args []string) error {
@@ -61,7 +63,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create client: %w", err)
 	}
 
-	toolsets.AddAllTools(client, mcpServer, readOnly)
+	toolsets.AddAllTools(client, mcpServer, cmd.Flags(), readOnly)
 
 	zap.L().Info("read-only mode", zap.Bool("enabled", readOnly))
 

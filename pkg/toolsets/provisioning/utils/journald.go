@@ -13,7 +13,22 @@ import (
 
 const nodeHostnameLabel = "kubernetes.io/hostname"
 
-func CreateSystemdLogGathererJob(jobName, nodeName, unit string, log *zap.Logger) (*unstructured.Unstructured, error) {
+func CreateSystemdLogGathererJob(jobName, nodeName, unit, image string, log *zap.Logger, command ...string) (*unstructured.Unstructured, error) {
+	defaultCommand := []string{
+		"chroot",
+		"/host",
+		"journalctl",
+		"-eu",
+		fmt.Sprintf("%s.service", unit),
+		"-n",
+		"75",
+		"--no-pager",
+	}
+
+	if len(command) == 0 {
+		command = defaultCommand
+	}
+
 	job := &batchv1.Job{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "batch/v1",
@@ -35,23 +50,21 @@ func CreateSystemdLogGathererJob(jobName, nodeName, unit string, log *zap.Logger
 					RestartPolicy: corev1.RestartPolicyNever,
 					Containers: []corev1.Container{
 						{
-							Name: "journal-reader",
-							// TODO: Get a real image together for this
-							Image: "debian:stable-slim",
-							Command: []string{
-								"/bin/sh",
-								"-c",
-								fmt.Sprintf("apt-get update >/dev/null && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq systemd >/dev/null && rm -rf /var/lib/apt/lists/* && journalctl -u %s.service --no-pager -n 100 -o cat", unit),
+							Name:    "journald-reader",
+							Image:   image, // debian:stable-slim
+							Command: command,
+							SecurityContext: &corev1.SecurityContext{
+								RunAsUser:                new(int64(0)),
+								AllowPrivilegeEscalation: new(false),
+								Capabilities: &corev1.Capabilities{
+									Drop: []corev1.Capability{corev1.Capability("ALL")},
+									Add:  []corev1.Capability{corev1.Capability("SYS_CHROOT")},
+								},
 							},
 							VolumeMounts: []corev1.VolumeMount{
 								{
-									Name:      "journal-logs",
-									MountPath: "/var/log/journal",
-									ReadOnly:  true,
-								},
-								{
-									Name:      "machine-id",
-									MountPath: "/etc/machine-id",
+									Name:      "host-root",
+									MountPath: "/host",
 									ReadOnly:  true,
 								},
 							},
@@ -62,20 +75,11 @@ func CreateSystemdLogGathererJob(jobName, nodeName, unit string, log *zap.Logger
 					},
 					Volumes: []corev1.Volume{
 						{
-							Name: "journal-logs",
+							Name: "host-root",
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
-									Path: "/var/log/journal",
-									Type: new(corev1.HostPathDirectoryOrCreate),
-								},
-							},
-						},
-						{
-							Name: "machine-id",
-							VolumeSource: corev1.VolumeSource{
-								HostPath: &corev1.HostPathVolumeSource{
-									Path: "/etc/machine-id",
-									Type: new(corev1.HostPathFile),
+									Path: "/",
+									Type: new(corev1.HostPathDirectory),
 								},
 							},
 						},
