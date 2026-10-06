@@ -15,6 +15,7 @@ VERSION ?= 0.0.0-$(COMMIT)$(DIRTY)
 
 TAG ?= $(VERSION)
 IMAGE = $(REPO)/rancher-ai-mcp:$(TAG)
+TOOLBOX_IMAGE = $(REPO)/rancher-ai-mcp-toolbox:$(TAG)
 
 push-image:
 	docker buildx build \
@@ -27,4 +28,22 @@ push-image:
 		--attest type=provenance,mode=max \
 		-t ${IMAGE} \
 		--push \
-		. 
+		.
+
+build-toolbox-image:
+	docker buildx build \
+		--file package/Dockerfile.toolbox \
+		-t ${TOOLBOX_IMAGE} \
+		--load \
+		package
+
+push-toolbox-image:
+	docker buildx build \
+		${IID_FILE_FLAG} \
+		--file package/Dockerfile.toolbox \
+		--platform=${TARGET_PLATFORMS} \
+		--sbom=true \
+		--attest type=provenance,mode=max \
+		-t ${TOOLBOX_IMAGE} \
+		--push \
+		package

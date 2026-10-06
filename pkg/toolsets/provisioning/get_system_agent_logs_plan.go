@@ -18,9 +18,9 @@ func (t *Tools) investigateFailedPlanApplicationPlan(_ context.Context, toolReq 
 	})
 
 	log.Debug("Planning failed plan execution investigation")
-	toolboxImage, err := t.flags.GetString("toolbox-image")
+	toolboxImage, err := t.flags.GetString("toolboxImage-image")
 	if err != nil {
-		log.Error("failed to get toolbox image", zap.Error(err))
+		log.Error("failed to get toolboxImage image", zap.Error(err))
 		return nil, nil, err
 	}
 

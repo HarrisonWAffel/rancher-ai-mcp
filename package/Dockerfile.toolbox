@@ -1,0 +1,19 @@
+# Toolbox image providing grep, systemctl and journalctl for scraping systemd
+# journal logs from a node. The binaries ship with their own libraries, so the
+# image works regardless of the host's distribution.
+FROM registry.suse.com/bci/bci-base:16.0
+
+# systemd dlopen()s its compression libraries; install them explicitly so
+# journalctl can read compressed journal files.
+RUN zypper -n --gpg-auto-import-keys install --no-recommends \
+        bash grep gawk findutils systemd libzstd1 liblz4-1 liblzma5 && \
+    zypper clean -a
+
+ENV SYSTEMD_PAGER=cat \
+    SYSTEMD_COLORS=0
+
+LABEL "org.opencontainers.image.title"="Rancher MCP toolbox" \
+    "org.opencontainers.image.description"="Image with grep, systemctl and journalctl for scraping systemd journal logs from a node." \
+    "org.opencontainers.image.source"="https://github.com/rancher/rancher-ai-mcp"
+
+ENTRYPOINT ["/usr/bin/journalctl"]

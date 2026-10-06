@@ -50,9 +50,10 @@ func CreateSystemdLogGathererJob(jobName, nodeName, unit, image string, log *zap
 					RestartPolicy: corev1.RestartPolicyNever,
 					Containers: []corev1.Container{
 						{
-							Name:    "journald-reader",
-							Image:   image, // debian:stable-slim
-							Command: command,
+							Name:            "journald-reader",
+							Image:           image,
+							Command:         command,
+							ImagePullPolicy: corev1.PullAlways,
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser:                new(int64(0)),
 								AllowPrivilegeEscalation: new(false),

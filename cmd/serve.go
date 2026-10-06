@@ -63,7 +63,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create client: %w", err)
 	}
 
-	toolsets.AddAllTools(client, mcpServer, cmd.Flags(), readOnly)
+	toolsets.AddAllTools(client, mcpServer, cmd.Flags().Lookup("toolbox-image").Value.String(), readOnly)
 
 	zap.L().Info("read-only mode", zap.Bool("enabled", readOnly))
 

@@ -26,26 +26,18 @@ type investigateFailedPlanApplicationParams struct {
 	NodeName string `json:"nodeName" jsonschema:"the name of the node which is failing to execute a plan"`
 }
 
-func (params *investigateFailedPlanApplicationParams) validate(ctx context.Context, t *Tools, toolReq *mcp.CallToolRequest) (*zap.Logger, string, error) {
+func (params *investigateFailedPlanApplicationParams) validate(ctx context.Context, t *Tools, toolReq *mcp.CallToolRequest) (*zap.Logger, error) {
 	log := utils.NewChildLogger(toolReq, map[string]string{
 		"cluster":  params.Cluster,
 		"nodeName": params.NodeName,
 	})
 
 	if params.Cluster == "local" {
-		return nil, "", fmt.Errorf("plans are not used to control the local cluster")
-	}
-
-	// the image that is run in the downstream cluster. This image must have
-	// access to journalctl, systemctl, and grep
-	toolboxImage, err := t.flags.GetString("toolbox-image")
-	if err != nil {
-		log.Error("failed to get toolbox image", zap.Error(err))
-		return nil, "", err
+		return nil, fmt.Errorf("plans are not used to control the local cluster")
 	}
 
 	if strings.TrimSpace(params.NodeName) == "" {
-		return nil, "", fmt.Errorf("node name is required")
+		return nil, fmt.Errorf("node name is required")
 	}
 
 	// ensure that the provided node name is actually valid for the specified cluster and
@@ -56,11 +48,11 @@ func (params *investigateFailedPlanApplicationParams) validate(ctx context.Conte
 	})
 	if err != nil && !errors.IsNotFound(err) {
 		log.Error("failed to lookup CAPI machine resources", zap.Error(err))
-		return nil, "", fmt.Errorf("did not find any CAPI machine resources for cluster %s, this cluster is likely not managed by Rancher machine plans or the system agent. this tool cannot be run against clusters which do not utilize CAPI (aks,eks,gke,k3k,etc.): %w", params.Cluster, err)
+		return nil, fmt.Errorf("did not find any CAPI machine resources for cluster %s, this cluster is likely not managed by Rancher machine plans or the system agent. this tool cannot be run against clusters which do not utilize CAPI (aks,eks,gke,k3k,etc.): %w", params.Cluster, err)
 	}
 
 	if len(machines) == 0 {
-		return nil, "", fmt.Errorf("did not find any CAPI machine resources for cluster %s, this cluster is likely not managed by Rancher machine plans or the system agent. this tool cannot be run against clusters which do not utilize CAPI (aks,eks,gke,k3k,etc.)", params.Cluster)
+		return nil, fmt.Errorf("did not find any CAPI machine resources for cluster %s, this cluster is likely not managed by Rancher machine plans or the system agent. this tool cannot be run against clusters which do not utilize CAPI (aks,eks,gke,k3k,etc.)", params.Cluster)
 	}
 
 	found := false
@@ -72,14 +64,14 @@ func (params *investigateFailedPlanApplicationParams) validate(ctx context.Conte
 	}
 
 	if !found {
-		return nil, "", fmt.Errorf("failed to find node %s", params.NodeName)
+		return nil, fmt.Errorf("failed to find node %s", params.NodeName)
 	}
 
-	return log, toolboxImage, nil
+	return log, nil
 }
 
 func (t *Tools) investigateFailedPlanApplication(ctx context.Context, toolReq *mcp.CallToolRequest, params investigateFailedPlanApplicationParams) (*mcp.CallToolResult, any, error) {
-	log, toolboxImage, err := params.validate(ctx, t, toolReq)
+	log, err := params.validate(ctx, t, toolReq)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -93,7 +85,7 @@ func (t *Tools) investigateFailedPlanApplication(ctx context.Context, toolReq *m
 
 	// get system-agent journald logs from the downstream node, filtering on the current machine
 	// plan hash.
-	logs, err := createJobAndPollPod(ctx, params, t.client, toolboxImage, planHash, log)
+	logs, err := createJobAndPollPod(ctx, params, t.client, t.toolboxImage, planHash, log)
 	if err != nil {
 		log.Error("failed to create job", zap.Error(err))
 		return nil, nil, err
